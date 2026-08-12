@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
       <div>
         <h2 class="text-2xl font-bold text-slate-100">Database Tables</h2>
-        <p class="text-sm text-slate-400">Inspecting database structure and storage statistics.</p>
+        <p class="text-sm text-slate-400">Inspecting database structure and storage statistics for connection <span class="font-mono text-indigo-400 font-bold">[{{ currentConnection }}]</span>.</p>
       </div>
 
       <div class="relative w-64">
@@ -47,13 +47,13 @@
 
         <div class="flex items-center space-x-2 pt-3 border-t border-slate-800/60">
           <router-link
-            :to="{ name: 'data', params: { table: table.name } }"
+            :to="{ name: 'data', params: { table: table.name }, query: { connection: currentConnection } }"
             class="flex-1 text-center py-1.5 text-xs font-medium rounded-md bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
           >
             View Data
           </router-link>
           <router-link
-            :to="{ name: 'schema', params: { table: table.name } }"
+            :to="{ name: 'schema', params: { table: table.name }, query: { connection: currentConnection } }"
             class="flex-1 text-center py-1.5 text-xs font-medium rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
           >
             View Schema
@@ -65,11 +65,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 
-const emit = defineEmits(['update-driver', 'tables-loaded']);
+const props = defineProps({ connection: String });
+const emit = defineEmits(['update-driver', 'tables-loaded', 'connections-loaded']);
 const baseApiUrl = inject('baseApiUrl');
 
+const currentConnection = ref(props.connection || 'pgsql');
 const tables = ref([]);
 const loading = ref(true);
 const search = ref('');
@@ -79,17 +81,35 @@ const filteredTables = computed(() => {
   return tables.value.filter(t => t.name.toLowerCase().includes(search.value.toLowerCase()));
 });
 
-onMounted(async () => {
+const loadTables = async (conn) => {
+  loading.value = true;
+  currentConnection.value = conn || currentConnection.value;
   try {
-    const res = await fetch(`${baseApiUrl}/tables`);
+    const res = await fetch(`${baseApiUrl}/tables?connection=${currentConnection.value}`);
     const data = await res.json();
     tables.value = data.tables || [];
     emit('update-driver', data.driver);
     emit('tables-loaded', data.tables);
+    if (data.available_connections) {
+      emit('connections-loaded', data.available_connections);
+    }
   } catch (err) {
     console.error('Failed to fetch tables:', err);
   } finally {
     loading.value = false;
   }
+};
+
+const handleConnectionChange = (e) => {
+  loadTables(e.detail);
+};
+
+onMounted(() => {
+  loadTables(currentConnection.value);
+  window.addEventListener('connection-changed', handleConnectionChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('connection-changed', handleConnectionChange);
 });
 </script>

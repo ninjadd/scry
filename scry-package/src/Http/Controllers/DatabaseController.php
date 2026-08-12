@@ -12,18 +12,32 @@ class DatabaseController extends Controller
     {
     }
 
-    public function tables()
+    protected function getInspector(Request $request)
     {
+        $connection = $request->get('connection');
+        return $this->manager->forConnection($connection);
+    }
+
+    public function tables(Request $request)
+    {
+        $connectionName = $request->get('connection')
+            ?? config('database-manager.connection')
+            ?? config('database.default');
+
+        $inspector = $this->getInspector($request);
+
         return response()->json([
-            'driver' => $this->manager->getDefaultDriver(),
-            'tables' => $this->manager->driver()->getTables(),
+            'connection' => $connectionName,
+            'driver' => $this->manager->getDriverForConnection($connectionName),
+            'tables' => $inspector->getTables(),
+            'available_connections' => array_keys(config('database.connections', [])),
         ]);
     }
 
-    public function schema(string $table)
+    public function schema(Request $request, string $table)
     {
         return response()->json(
-            $this->manager->driver()->getTableSchema($table)
+            $this->getInspector($request)->getTableSchema($table)
         );
     }
 
@@ -35,7 +49,7 @@ class DatabaseController extends Controller
         $sortDir = $request->get('sort_dir', 'asc');
 
         return response()->json(
-            $this->manager->driver()->getPaginatedRows($table, $page, $perPage, $sortBy, $sortDir)
+            $this->getInspector($request)->getPaginatedRows($table, $page, $perPage, $sortBy, $sortDir)
         );
     }
 
@@ -46,7 +60,7 @@ class DatabaseController extends Controller
         ]);
 
         return response()->json(
-            $this->manager->driver()->executeQuery($request->input('query'))
+            $this->getInspector($request)->executeQuery($request->input('query'))
         );
     }
 }

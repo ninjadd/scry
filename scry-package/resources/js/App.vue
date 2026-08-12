@@ -13,13 +13,22 @@
             <span class="text-xs text-slate-400">Database Manager</span>
           </div>
         </div>
-        <span 
-          v-if="driver"
-          class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border"
-          :class="driver === 'pgsql' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'"
+      </div>
+
+      <!-- Connection Switcher -->
+      <div class="p-3 border-b border-slate-800 bg-slate-900/30">
+        <label class="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">
+          Connection
+        </label>
+        <select
+          v-model="selectedConnection"
+          @change="changeConnection"
+          class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
         >
-          {{ driver }}
-        </span>
+          <option v-for="conn in availableConnections" :key="conn" :value="conn">
+            {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : conn) }})
+          </option>
+        </select>
       </div>
 
       <!-- Navigation Links -->
@@ -48,7 +57,7 @@
       </nav>
 
       <!-- Tables Quick List -->
-      <div class="mt-4 px-3 flex-1 overflow-y-auto">
+      <div class="mt-2 px-3 flex-1 overflow-y-auto">
         <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
           Tables ({{ tables.length }})
         </h3>
@@ -56,7 +65,7 @@
           <router-link
             v-for="table in tables"
             :key="table.name"
-            :to="{ name: 'data', params: { table: table.name } }"
+            :to="{ name: 'data', params: { table: table.name }, query: { connection: selectedConnection } }"
             class="flex items-center justify-between px-3 py-1.5 text-xs rounded-md truncate transition-colors"
             :class="$route.params.table === table.name ? 'bg-slate-800 text-slate-100 font-semibold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'"
           >
@@ -69,7 +78,12 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-950">
-      <router-view @update-driver="setDriver" @tables-loaded="setTables" />
+      <router-view
+        :connection="selectedConnection"
+        @update-driver="setDriver"
+        @tables-loaded="setTables"
+        @connections-loaded="setConnections"
+      />
     </main>
   </div>
 </template>
@@ -79,7 +93,16 @@ import { ref } from 'vue';
 
 const driver = ref('');
 const tables = ref([]);
+const selectedConnection = ref('pgsql');
+const availableConnections = ref(['pgsql', 'mysql']);
 
 const setDriver = (val) => { driver.value = val; };
 const setTables = (val) => { tables.value = val; };
+const setConnections = (val) => {
+  if (val && val.length > 0) availableConnections.value = val;
+};
+
+const changeConnection = () => {
+  window.dispatchEvent(new CustomEvent('connection-changed', { detail: selectedConnection.value }));
+};
 </script>
