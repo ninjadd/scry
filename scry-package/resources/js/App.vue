@@ -22,11 +22,11 @@
             Connection
           </label>
           <select
-            v-model="selectedConnection"
-            @change="changeConnection"
+            v-model="connectionStore.currentConnection"
+            @change="handleConnectionChange"
             class="w-full scry-bg-input border scry-border rounded px-2.5 py-1.5 text-xs scry-text-main focus:outline-none focus:border-pink-600 font-mono shadow-sm"
           >
-            <option v-for="conn in availableConnections" :key="conn" :value="conn">
+            <option v-for="conn in connectionStore.availableConnections" :key="conn" :value="conn">
               {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : conn) }})
             </option>
           </select>
@@ -37,44 +37,36 @@
           <router-link
             to="/"
             class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
+            :class="$route.name === 'dashboard' || $route.name === 'dashboard-alt' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+          >
+            <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            Dashboard
+          </router-link>
+
+          <router-link
+            to="/tables"
+            class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
             :class="$route.name === 'tables' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
           >
             <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
             </svg>
-            Tables Overview
+            Tables Browser
           </router-link>
 
           <router-link
-            to="/console"
+            to="/query"
             class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
-            :class="$route.name === 'console' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+            :class="$route.name === 'query' || $route.name === 'console' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
           >
             <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
-            SQL Console
+            SQL Runner
           </router-link>
         </nav>
-
-        <!-- Tables Quick List -->
-        <div class="mt-2 px-3 overflow-y-auto max-h-[calc(100vh-290px)]">
-          <h3 class="px-3 text-xs font-semibold scry-text-subtle uppercase tracking-wider mb-2">
-            Tables ({{ tables.length }})
-          </h3>
-          <div class="space-y-0.5">
-            <router-link
-              v-for="table in tables"
-              :key="table.name"
-              :to="{ name: 'data', params: { table: table.name }, query: { connection: selectedConnection } }"
-              class="flex items-center justify-between px-3 py-1.5 text-xs rounded-md truncate transition-colors"
-              :class="$route.params.table === table.name ? 'scry-bg-card scry-text-main font-semibold border scry-border' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
-            >
-              <span class="truncate">{{ table.name }}</span>
-              <span class="text-[10px] font-mono opacity-80">{{ table.rows }}</span>
-            </router-link>
-          </div>
-        </div>
       </div>
 
       <!-- Bottom Left Hand Side Dark/Light Mode Toggle -->
@@ -102,26 +94,17 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col overflow-hidden scry-bg-app">
-      <router-view
-        :connection="selectedConnection"
-        :is-dark="isDark"
-        @update-driver="setDriver"
-        @tables-loaded="setTables"
-        @connections-loaded="setConnections"
-      />
+      <router-view />
     </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useConnectionStore } from './stores/useConnectionStore';
 
-const driver = ref('');
-const tables = ref([]);
-const selectedConnection = ref('pgsql');
-const availableConnections = ref(['pgsql', 'mysql']);
+const connectionStore = useConnectionStore();
 
-// Default to Light Mode as requested
 const savedTheme = localStorage.getItem('scry-theme') || 'light';
 const isDark = ref(savedTheme === 'dark');
 
@@ -141,17 +124,12 @@ const toggleTheme = () => {
   applyTheme();
 };
 
+const handleConnectionChange = () => {
+  connectionStore.setConnection(connectionStore.currentConnection);
+};
+
 onMounted(() => {
   applyTheme();
+  connectionStore.fetchServerStats();
 });
-
-const setDriver = (val) => { driver.value = val; };
-const setTables = (val) => { tables.value = val; };
-const setConnections = (val) => {
-  if (val && val.length > 0) availableConnections.value = val;
-};
-
-const changeConnection = () => {
-  window.dispatchEvent(new CustomEvent('connection-changed', { detail: selectedConnection.value }));
-};
 </script>
