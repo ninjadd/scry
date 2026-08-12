@@ -5,9 +5,9 @@ namespace Scry;
 use Illuminate\Support\Manager;
 use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
 use Scry\Contracts\DatabaseInspector;
+use Scry\Exceptions\UnsupportedDriverException;
 use Scry\Inspectors\MysqlInspector;
 use Scry\Inspectors\PostgresInspector;
-use InvalidArgumentException;
 
 class DatabaseExplorerManager extends Manager
 {
@@ -18,23 +18,37 @@ class DatabaseExplorerManager extends Manager
      */
     public function getDefaultDriver(): string
     {
-        $connectionName = $this->container['config']->get('database-manager.connection')
+        $connectionName = $this->container['config']->get('scry.connection')
+            ?? $this->container['config']->get('database-manager.connection')
             ?? $this->container['config']->get('database.default');
 
         return $this->getDriverForConnection($connectionName);
     }
 
     /**
-     * Get inspector for a specific named connection (e.g. 'pgsql', 'mysql').
+     * Resolve DatabaseInspector instance for a specific connection name.
+     * Defaults to the host application's default connection if null.
+     *
+     * @param string|null $connectionName
+     * @return DatabaseInspector
+     */
+    public function connection(?string $connectionName = null): DatabaseInspector
+    {
+        return $this->forConnection($connectionName);
+    }
+
+    /**
+     * Resolve DatabaseInspector instance for a specific connection name.
      *
      * @param string|null $connectionName
      * @return DatabaseInspector
      */
     public function forConnection(?string $connectionName = null): DatabaseInspector
     {
-        if (null === $connectionName) {
-            return $this->driver();
-        }
+        $connectionName = $connectionName
+            ?? $this->container['config']->get('scry.connection')
+            ?? $this->container['config']->get('database-manager.connection')
+            ?? $this->container['config']->get('database.default');
 
         $driverName = $this->getDriverForConnection($connectionName);
         $connection = $this->container->make(LaravelDatabaseManager::class)->connection($connectionName);
@@ -42,12 +56,16 @@ class DatabaseExplorerManager extends Manager
         return match ($driverName) {
             'pgsql' => new PostgresInspector($connection),
             'mysql' => new MysqlInspector($connection),
-            default => throw new InvalidArgumentException("Unsupported driver [{$driverName}] for connection [{$connectionName}]."),
+            default => throw UnsupportedDriverException::forDriver($driverName, $connectionName),
         };
     }
 
     /**
      * Resolve driver type for a named connection.
+     *
+     * @param string $connectionName
+     * @return string
+     * @throws UnsupportedDriverException
      */
     public function getDriverForConnection(string $connectionName): string
     {
@@ -56,7 +74,7 @@ class DatabaseExplorerManager extends Manager
         return match ($driver) {
             'pgsql', 'postgres', 'postgresql' => 'pgsql',
             'mysql', 'mariadb' => 'mysql',
-            default => throw new InvalidArgumentException("Unsupported database driver [{$driver}] for connection [{$connectionName}]."),
+            default => throw UnsupportedDriverException::forDriver((string) $driver, $connectionName),
         };
     }
 
@@ -67,10 +85,7 @@ class DatabaseExplorerManager extends Manager
      */
     protected function createPgsqlDriver(): DatabaseInspector
     {
-        $connectionName = $this->container['config']->get('database-manager.connection');
-        $connection = $this->container->make(LaravelDatabaseManager::class)->connection($connectionName);
-
-        return new PostgresInspector($connection);
+        return $this->forConnection();
     }
 
     /**
@@ -80,9 +95,6 @@ class DatabaseExplorerManager extends Manager
      */
     protected function createMysqlDriver(): DatabaseInspector
     {
-        $connectionName = $this->container['config']->get('database-manager.connection');
-        $connection = $this->container->make(LaravelDatabaseManager::class)->connection($connectionName);
-
-        return new MysqlInspector($connection);
+        return $this->forConnection();
     }
 }
