@@ -13,4 +13,4 @@ app.use(router);
 const baseApiUrl = window.ScryConfig?.baseApiUrl || '/scry/api';
 app.provide('baseApiUrl', baseApiUrl);
 
-app.mount('#scry-app');
+app.mount('#app');

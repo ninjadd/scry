@@ -10,10 +10,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <script>
+        window.ScryConfig = {
+            basePath: "/{{ config('scry.path', 'scry') }}",
+            baseApiUrl: "/{{ config('scry.path', 'scry') }}/api",
+        };
+    </script>
+
     <script type="module" src="{{ asset('vendor/scry/app.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('vendor/scry/app.css') }}">
 </head>
-<body class="h-full font-sans antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
-    <div id="app" data-base-path="/scry"></div>
+<body class="h-full font-sans antialiased overflow-hidden">
+    <div id="app"></div>
 </body>
 </html>
