@@ -5,9 +5,9 @@ use Scry\Http\Controllers\DatabaseController;
 use Scry\Http\Middleware\Authorize;
 
 Route::group([
-    'prefix' => config('database-manager.path', 'db-manager') . '/api',
-    'middleware' => array_merge(config('database-manager.middleware', ['web']), [Authorize::class]),
-    'as' => 'database-manager.api.',
+    'prefix' => config('scry.path', 'scry') . '/api',
+    'middleware' => array_merge(config('scry.middleware', ['web']), [Authorize::class]),
+    'as' => 'scry.api.',
 ], function () {
     Route::get('/tables', [DatabaseController::class, 'tables'])->name('tables');
     Route::get('/tables/{table}/schema', [DatabaseController::class, 'schema'])->name('schema');

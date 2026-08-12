@@ -5,9 +5,9 @@ use Scry\Http\Controllers\HomeController;
 use Scry\Http\Middleware\Authorize;
 
 Route::group([
-    'prefix' => config('database-manager.path', 'db-manager'),
-    'middleware' => array_merge(config('database-manager.middleware', ['web']), [Authorize::class]),
-    'as' => 'database-manager.',
+    'prefix' => config('scry.path', 'scry'),
+    'middleware' => array_merge(config('scry.middleware', ['web']), [Authorize::class]),
+    'as' => 'scry.',
 ], function () {
     Route::get('/{view?}', HomeController::class)
         ->where('view', '(.*)')

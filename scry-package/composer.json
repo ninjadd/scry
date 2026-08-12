@@ -39,7 +39,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Scry\\DatabaseManagerServiceProvider"
+                "Scry\\ScryServiceProvider"
             ]
         }
     },

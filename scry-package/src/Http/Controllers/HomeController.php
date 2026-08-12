@@ -8,6 +8,6 @@ class HomeController extends Controller
 {
     public function __invoke()
     {
-        return view('database-manager::app');
+        return view('scry::index');
     }
 }

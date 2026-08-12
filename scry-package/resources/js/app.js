@@ -8,7 +8,7 @@ import QueryConsole from './components/QueryConsole.vue';
 import './app.css';
 
 const appElement = document.getElementById('app');
-const basePath = appElement?.getAttribute('data-base-path') || '/db-manager';
+const basePath = appElement?.getAttribute('data-base-path') || '/scry';
 
 const routes = [
   { path: '/', name: 'tables', component: TableList },
