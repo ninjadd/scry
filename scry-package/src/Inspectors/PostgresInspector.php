@@ -2,10 +2,12 @@
 
 namespace Scry\Inspectors;
 
+use Illuminate\Support\Facades\DB;
+
 class PostgresInspector extends AbstractInspector
 {
     /**
-     * Get all base tables in the public schema with relation size and row count estimates.
+     * Get all base tables in the PostgreSQL database schema with relation sizes and row count estimates.
      */
     public function getTables(): array
     {
@@ -36,7 +38,8 @@ class PostgresInspector extends AbstractInspector
     }
 
     /**
-     * Get detailed column details (name, data_type, nullable, default_value, is_primary, is_foreign_key).
+     * Get column schema definitions for a specific PostgreSQL table.
+     * Supports jsonb, uuid, timestamptz, array types, default values, primary keys, and foreign keys.
      */
     public function getTableSchema(string $table): array
     {
@@ -66,10 +69,24 @@ class PostgresInspector extends AbstractInspector
         $columnsRaw = $this->connection->select($columnsQuery, [$table]);
 
         $columns = array_map(function ($col) use ($primaryColumns, $fkColumns) {
+            $formattedType = match ($col->format) {
+                'jsonb' => 'jsonb',
+                'uuid' => 'uuid',
+                'timestamptz' => 'timestamp with time zone',
+                'timestamp' => 'timestamp without time zone',
+                'bool' => 'boolean',
+                'int8' => 'bigint',
+                'int4' => 'integer',
+                'int2' => 'smallint',
+                'text' => 'text',
+                'varchar' => $col->max_length ? "character varying({$col->max_length})" : "character varying",
+                default => str_starts_with($col->format, '_') ? substr($col->format, 1) . '[]' : $col->format,
+            };
+
             return [
                 'name' => $col->name,
                 'data_type' => $col->format ?? $col->type,
-                'full_type' => $col->max_length ? "{$col->type}({$col->max_length})" : $col->type,
+                'full_type' => $formattedType,
                 'nullable' => $col->nullable === 'YES',
                 'default_value' => $col->default_value,
                 'is_primary' => in_array($col->name, $primaryColumns),
@@ -86,7 +103,7 @@ class PostgresInspector extends AbstractInspector
     }
 
     /**
-     * Get index information for a specific table (index_name, column_name, is_unique, is_primary).
+     * Get index names, columns involved, uniqueness, and primary key status for a PostgreSQL table.
      */
     public function getTableIndexes(string $table): array
     {
@@ -118,7 +135,7 @@ class PostgresInspector extends AbstractInspector
     }
 
     /**
-     * Get foreign key relationship definitions for a specific table.
+     * Get foreign key relationships for a PostgreSQL table from pg_constraint.
      */
     public function getTableForeignKeys(string $table): array
     {
@@ -132,7 +149,7 @@ class PostgresInspector extends AbstractInspector
             JOIN pg_catalog.pg_class tbl ON tbl.oid = con.conrelid
             JOIN pg_catalog.pg_class cl ON cl.oid = con.confrelid
             JOIN pg_catalog.pg_attribute att ON att.attrelid = con.confrelid AND att.attnum = ANY(con.confkey)
-            JOIN pg_catalog.pg_attribute att2 ON att2.attrelid = con.conrelid AND att2.attnum = ANY(con.confkey)
+            JOIN pg_catalog.pg_attribute att2 ON att2.attrelid = con.conrelid AND att2.attnum = ANY(con.conkey)
             WHERE con.contype = 'f'
               AND tbl.relname = ?;
         ";
