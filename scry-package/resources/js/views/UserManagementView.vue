@@ -6,12 +6,21 @@
         <p class="text-sm scry-text-muted">Manage MySQL database user credentials, hosts, and granted permissions for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
       </div>
 
-      <button
-        @click="loadUsers"
-        class="px-3.5 py-2 text-xs font-semibold rounded-lg scry-accent-bg transition-colors shadow-sm cursor-pointer"
-      >
-        Refresh Users
-      </button>
+      <div class="flex items-center space-x-2">
+        <button
+          v-if="hasPrivileges"
+          @click="showCreateUserModal = true"
+          class="px-3.5 py-2 text-xs font-semibold rounded-lg scry-accent-bg transition-colors shadow-sm cursor-pointer"
+        >
+          Create MySQL User
+        </button>
+        <button
+          @click="loadUsers"
+          class="px-3.5 py-2 text-xs font-semibold rounded-lg border scry-border scry-bg-card scry-text-main transition-colors shadow-sm cursor-pointer"
+        >
+          Refresh
+        </button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -50,19 +59,74 @@
           <tr>
             <th class="px-5 py-3">User</th>
             <th class="px-5 py-3">Host</th>
-            <th class="px-5 py-3">Status</th>
+            <th class="px-5 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y scry-border-subtle scry-text-main">
           <tr v-for="u in users" :key="u.user + u.host" class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
             <td class="px-5 py-3 font-semibold scry-accent-text">{{ u.user }}</td>
             <td class="px-5 py-3 scry-text-main">{{ u.host }}</td>
-            <td class="px-5 py-3">
-              <span class="px-2 py-0.5 text-[10px] font-bold rounded scry-badge-glaucous">Active User</span>
+            <td class="px-5 py-3 text-right">
+              <button @click="openPrivilegesModal(u.user, u.host)" class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-pale-blue cursor-pointer">
+                Manage Privileges
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Create User Modal -->
+    <div v-if="showCreateUserModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="showCreateUserModal = false">
+      <div class="scry-bg-card border scry-border rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <h3 class="font-bold text-base scry-text-main">Create MySQL User Account</h3>
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Username</label>
+          <input v-model="newUsername" type="text" placeholder="e.g. app_reporter" class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Host Restriction</label>
+          <input v-model="newHost" type="text" placeholder="e.g. % or localhost" class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Password</label>
+          <input v-model="newPassword" type="password" placeholder="Password" class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main" />
+        </div>
+        <div class="flex items-center justify-end space-x-2 pt-3 border-t scry-border">
+          <button @click="showCreateUserModal = false" class="px-4 py-2 text-xs font-semibold rounded-lg border scry-border scry-text-main">Cancel</button>
+          <button @click="submitCreateUser" class="px-4 py-2 text-xs font-semibold rounded-lg scry-accent-bg">Create User</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privileges Matrix Modal -->
+    <div v-if="showPrivModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="showPrivModal = false">
+      <div class="scry-bg-card border scry-border rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+        <h3 class="font-bold text-base scry-text-main">Manage Privileges: '{{ selectedUser }}'@'{{ selectedHost }}'</h3>
+        
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Action</label>
+          <select v-model="privAction" class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main">
+            <option value="grant">GRANT Privileges</option>
+            <option value="revoke">REVOKE Privileges</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-2">Select Privileges</label>
+          <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border scry-border rounded scry-bg-input">
+            <label v-for="p in availablePrivs" :key="p" class="flex items-center space-x-2 text-xs font-mono scry-text-main cursor-pointer">
+              <input type="checkbox" :value="p" v-model="selectedPrivs" />
+              <span>{{ p }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-2 pt-3 border-t scry-border">
+          <button @click="showPrivModal = false" class="px-4 py-2 text-xs font-semibold rounded-lg border scry-border scry-text-main">Cancel</button>
+          <button @click="submitPrivileges" class="px-4 py-2 text-xs font-semibold rounded-lg scry-accent-bg">Apply Privileges</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -75,6 +139,18 @@ const store = useConnectionStore();
 const loading = ref(true);
 const hasPrivileges = ref(false);
 const users = ref([]);
+
+const showCreateUserModal = ref(false);
+const newUsername = ref('');
+const newHost = ref('%');
+const newPassword = ref('');
+
+const showPrivModal = ref(false);
+const selectedUser = ref('');
+const selectedHost = ref('');
+const privAction = ref('grant');
+const availablePrivs = ['ALL PRIVILEGES', 'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER'];
+const selectedPrivs = ref(['SELECT', 'INSERT', 'UPDATE', 'DELETE']);
 
 const loadUsers = async () => {
   loading.value = true;
@@ -89,6 +165,55 @@ const loadUsers = async () => {
     console.error(err);
   } finally {
     loading.value = false;
+  }
+};
+
+const submitCreateUser = async () => {
+  if (!newUsername.value || !newPassword.value) return;
+
+  try {
+    const res = await store.scryFetch('/users', {
+      method: 'POST',
+      body: JSON.stringify({ username: newUsername.value, host: newHost.value, password: newPassword.value }),
+    });
+
+    if (res.ok) {
+      showCreateUserModal.value = false;
+      newUsername.value = '';
+      newPassword.value = '';
+      loadUsers();
+    }
+  } catch (err) {
+    alert('Failed to create user: ' + err.message);
+  }
+};
+
+const openPrivilegesModal = (user, host) => {
+  selectedUser.value = user;
+  selectedHost.value = host;
+  showPrivModal.value = true;
+};
+
+const submitPrivileges = async () => {
+  if (selectedPrivs.value.length === 0) return;
+
+  try {
+    const res = await store.scryFetch('/users/privileges', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: selectedUser.value,
+        host: selectedHost.value,
+        action: privAction.value,
+        privileges: selectedPrivs.value,
+      }),
+    });
+
+    if (res.ok) {
+      showPrivModal.value = false;
+      alert('Privileges updated successfully.');
+    }
+  } catch (err) {
+    alert('Failed to apply privileges: ' + err.message);
   }
 };
 

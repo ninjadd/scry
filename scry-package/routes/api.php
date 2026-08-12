@@ -24,18 +24,27 @@ Route::group([
     // Routines & Triggers
     Route::get('/views', [ApiController::class, 'views'])->name('views');
     Route::get('/triggers', [ApiController::class, 'triggers'])->name('triggers');
+    Route::post('/triggers', [ApiController::class, 'createTrigger'])->name('triggers.create');
     Route::get('/procedures', [ApiController::class, 'procedures'])->name('procedures');
+    Route::post('/routines', [ApiController::class, 'createRoutine'])->name('routines.create');
 
     // Users & Privileges
     Route::get('/users', [ApiController::class, 'users'])->name('users');
+    Route::post('/users', [ApiController::class, 'createUser'])->name('users.create');
+    Route::post('/users/privileges', [ApiController::class, 'manageUserPrivileges'])->name('users.privileges');
 
     // Global Search & Import/Export
     Route::get('/search', [ApiController::class, 'globalSearch'])->name('search');
     Route::post('/import', [ApiController::class, 'importFile'])->name('import');
     Route::get('/export/{table}', [ApiController::class, 'exportTable'])->name('export');
 
-    // Tables & Rows
+    // Tables & Rows DDL
     Route::get('/tables', [ApiController::class, 'tables'])->name('tables');
+    Route::post('/tables', [ApiController::class, 'createTable'])->name('tables.create');
+    Route::post('/tables/copy', [ApiController::class, 'copyTable'])->name('tables.copy');
+    Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable'])->name('tables.rename');
+    Route::delete('/tables/{table}', [ApiController::class, 'dropTable'])->name('tables.drop');
+
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');
     Route::get('/tables/{table}/data', [ApiController::class, 'rows'])->name('data');
@@ -65,15 +74,24 @@ if ($path !== 'db-manager') {
 
         Route::get('/views', [ApiController::class, 'views']);
         Route::get('/triggers', [ApiController::class, 'triggers']);
+        Route::post('/triggers', [ApiController::class, 'createTrigger']);
         Route::get('/procedures', [ApiController::class, 'procedures']);
+        Route::post('/routines', [ApiController::class, 'createRoutine']);
 
         Route::get('/users', [ApiController::class, 'users']);
+        Route::post('/users', [ApiController::class, 'createUser']);
+        Route::post('/users/privileges', [ApiController::class, 'manageUserPrivileges']);
 
         Route::get('/search', [ApiController::class, 'globalSearch']);
         Route::post('/import', [ApiController::class, 'importFile']);
         Route::get('/export/{table}', [ApiController::class, 'exportTable']);
 
         Route::get('/tables', [ApiController::class, 'tables']);
+        Route::post('/tables', [ApiController::class, 'createTable']);
+        Route::post('/tables/copy', [ApiController::class, 'copyTable']);
+        Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable']);
+        Route::delete('/tables/{table}', [ApiController::class, 'dropTable']);
+
         Route::get('/tables/{table}/schema', [ApiController::class, 'schema']);
         Route::get('/tables/{table}/rows', [ApiController::class, 'rows']);
         Route::get('/tables/{table}/data', [ApiController::class, 'rows']);

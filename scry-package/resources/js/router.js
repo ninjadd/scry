@@ -9,6 +9,7 @@ import ServerTuningView from './views/ServerTuningView.vue';
 import GlobalSearchView from './views/GlobalSearchView.vue';
 import UserManagementView from './views/UserManagementView.vue';
 import ImportExportView from './views/ImportExportView.vue';
+import RoutinesView from './views/RoutinesView.vue';
 import SchemaView from './components/SchemaView.vue';
 
 const basePath = window.ScryConfig?.basePath || '/scry';
@@ -26,6 +27,7 @@ const routes = [
   { path: '/tuning', name: 'tuning', component: ServerTuningView },
   { path: '/search', name: 'search', component: GlobalSearchView },
   { path: '/users', name: 'users', component: UserManagementView },
+  { path: '/routines', name: 'routines', component: RoutinesView },
   { path: '/import-export', name: 'import-export', component: ImportExportView },
 ];
 

@@ -81,6 +81,282 @@ class ApiController extends Controller
     }
 
     /**
+     * POST /scry/api/tables
+     * Interactive table creation endpoint.
+     */
+    public function createTable(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'columns' => 'required|array|min:1',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $tableName = $request->input('name');
+        $cols = $request->input('columns');
+
+        $colDefs = [];
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $quoteChar = $driver === 'pgsql' ? '"' : '`';
+
+        foreach ($cols as $col) {
+            $colName = $col['name'] ?? null;
+            $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
+            $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
+            $autoInc = !empty($col['auto_increment']) ? ($driver === 'pgsql' ? '' : 'AUTO_INCREMENT') : '';
+            $pk = !empty($col['is_primary']) ? 'PRIMARY KEY' : '';
+
+            if ($driver === 'pgsql' && !empty($col['auto_increment'])) {
+                $type = 'BIGSERIAL';
+            }
+
+            if ($colName) {
+                $colDefs[] = "{$quoteChar}{$colName}{$quoteChar} {$type} {$nullable} {$autoInc} {$pk}";
+            }
+        }
+
+        $sql = "CREATE TABLE {$quoteChar}{$tableName}{$quoteChar} (\n  " . implode(",\n  ", $colDefs) . "\n);";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Table {$tableName} created successfully.",
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/tables/copy
+     */
+    public function copyTable(Request $request): JsonResponse
+    {
+        $request->validate([
+            'source_table' => 'required|string',
+            'target_table' => 'required|string',
+            'copy_data' => 'nullable|boolean',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $source = $request->input('source_table');
+        $target = $request->input('target_table');
+        $copyData = (bool)$request->input('copy_data', true);
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->copyTable($source, $target, $copyData);
+
+            return response()->json([
+                'success' => $success,
+                'message' => "Table {$source} copied to {$target} successfully.",
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * PUT /scry/api/tables/{table}/rename
+     */
+    public function renameTable(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'new_name' => 'required|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $newName = $request->input('new_name');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->renameTable($table, $newName);
+
+            return response()->json([
+                'success' => $success,
+                'message' => "Table {$table} renamed to {$newName} successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/tables/{table}
+     */
+    public function dropTable(string $table, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->dropTable($table);
+
+            return response()->json([
+                'success' => $success,
+                'message' => "Table {$table} dropped successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/users
+     * Interactive MySQL user creation.
+     */
+    public function createUser(Request $request): JsonResponse
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'host' => 'required|string',
+            'password' => 'required|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $user = $request->input('username');
+        $host = $request->input('host');
+        $pwd = addslashes($request->input('password'));
+
+        $sql = "CREATE USER '{$user}'@'{$host}' IDENTIFIED BY '{$pwd}';";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "MySQL User '{$user}'@'{$host}' created successfully.",
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/users/privileges
+     * Interactive GRANT / REVOKE privileges.
+     */
+    public function manageUserPrivileges(Request $request): JsonResponse
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'host' => 'required|string',
+            'action' => 'required|in:grant,revoke',
+            'privileges' => 'required|array',
+            'database' => 'nullable|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $user = $request->input('username');
+        $host = $request->input('host');
+        $action = strtoupper($request->input('action'));
+        $privs = implode(', ', $request->input('privileges'));
+        $db = $request->input('database', '*');
+        $target = $db === '*' ? '*.*' : "`{$db}`.*";
+
+        $sql = $action === 'GRANT'
+            ? "GRANT {$privs} ON {$target} TO '{$user}'@'{$host}';"
+            : "REVOKE {$privs} ON {$target} FROM '{$user}'@'{$host}';";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            $this->sqlRunner->execute("FLUSH PRIVILEGES;", $connection);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Privileges {$action}ed for '{$user}'@'{$host}' successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/routines
+     */
+    public function createRoutine(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'type' => 'required|in:PROCEDURE,FUNCTION',
+            'body' => 'required|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $sql = $request->input('body');
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Routine created successfully.",
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/triggers
+     */
+    public function createTrigger(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'table' => 'required|string',
+            'timing' => 'required|in:BEFORE,AFTER',
+            'event' => 'required|in:INSERT,UPDATE,DELETE',
+            'body' => 'required|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $name = $request->input('name');
+        $table = $request->input('table');
+        $timing = $request->input('timing');
+        $event = $request->input('event');
+        $body = $request->input('body');
+
+        $sql = "CREATE TRIGGER `{$name}` {$timing} {$event} ON `{$table}` FOR EACH ROW BEGIN\n{$body}\nEND;";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Trigger `{$name}` created successfully.",
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * GET /scry/api/views
      */
     public function views(Request $request): JsonResponse
@@ -124,7 +400,6 @@ class ApiController extends Controller
 
     /**
      * GET /scry/api/users
-     * Returns MySQL users and checks whether active connection user holds elevated privileges.
      */
     public function users(Request $request): JsonResponse
     {
@@ -237,6 +512,17 @@ class ApiController extends Controller
             $rows = $rowsData['data'] ?? [];
 
             switch ($format) {
+                case 'doc':
+                case 'word':
+                    $content = $this->exportService->exportWord($table, $rows);
+                    $contentType = 'application/msword';
+                    $filename = "{$table}_export.doc";
+                    break;
+                case 'odt':
+                    $content = $this->exportService->exportOdt($table, $rows);
+                    $contentType = 'application/vnd.oasis.opendocument.text';
+                    $filename = "{$table}_export.odt";
+                    break;
                 case 'sql':
                     $content = $this->exportService->exportSql($table, $rows, $driver);
                     $contentType = 'text/plain';

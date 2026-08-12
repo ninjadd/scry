@@ -1,145 +1,187 @@
 <template>
   <div class="flex-1 flex flex-col overflow-hidden p-6 scry-bg-app">
-    <div class="mb-4">
-      <h2 class="text-2xl font-bold scry-text-main mb-1">SQL Query Console</h2>
-      <p class="text-sm scry-text-muted">Execute custom read and mutation queries against connection <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
-    </div>
+    <div class="mb-4 flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold scry-text-main mb-1">Raw SQL Execution Console</h2>
+        <p class="text-sm scry-text-muted">Run raw queries, batch commands, and DDL queries directly on connection <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
+      </div>
 
-    <!-- Quick Query Shortcuts -->
-    <div class="mb-3 flex items-center space-x-2">
-      <span class="text-xs font-semibold scry-text-subtle">Quick Templates:</span>
-      <button
-        @click="queryText = 'SELECT * FROM users LIMIT 10;'"
-        class="px-2.5 py-1 text-[11px] font-mono rounded scry-bg-card border scry-border hover:scry-border-main scry-text-main cursor-pointer"
-      >
-        SELECT users
-      </button>
-      <button
-        @click="queryText = 'SELECT * FROM posts ORDER BY created_at DESC LIMIT 5;'"
-        class="px-2.5 py-1 text-[11px] font-mono rounded scry-bg-card border scry-border hover:scry-border-main scry-text-main cursor-pointer"
-      >
-        Recent posts
-      </button>
-      <button
-        @click="queryText = 'SELECT table_name, table_type FROM information_schema.tables;'"
-        class="px-2.5 py-1 text-[11px] font-mono rounded scry-bg-card border scry-border hover:scry-border-main scry-text-main cursor-pointer"
-      >
-        System tables
-      </button>
-    </div>
-
-    <!-- Query Editor -->
-    <div class="scry-bg-card border scry-border rounded-xl p-4 mb-4 flex flex-col shadow-sm">
-      <textarea
-        v-model="queryText"
-        rows="5"
-        placeholder="SELECT * FROM users LIMIT 10;"
-        class="w-full scry-bg-input border scry-border rounded-lg p-3 font-mono text-sm scry-accent-text placeholder:scry-text-subtle focus:outline-none focus:border-pink-600 shadow-inner"
-      ></textarea>
-      
-      <div class="flex items-center justify-between mt-3">
-        <div class="text-xs scry-text-muted font-mono space-x-3">
-          <span v-if="queryType" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase scry-badge-pale-blue">{{ queryType }}</span>
-          <span v-if="executionTime">Execution time: <strong class="text-emerald-600 dark:text-emerald-400 font-bold">{{ executionTime }} ms</strong></span>
-          <span v-if="affectedRows !== null" class="scry-accent-text font-bold">{{ affectedRows }} row(s) affected</span>
-        </div>
+      <div class="flex items-center space-x-2">
         <button
-          @click="runQuery"
-          :disabled="executing || !queryText.trim()"
-          class="px-5 py-2 text-xs font-semibold rounded-lg scry-accent-bg disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+          @click="showBookmarksDrawer = !showBookmarksDrawer"
+          class="px-3.5 py-2 text-xs font-semibold rounded-lg scry-badge-pale-blue transition-colors cursor-pointer"
         >
-          {{ executing ? 'Running...' : 'Execute Query' }}
+          Bookmarks ({{ bookmarks.length }})
+        </button>
+        <button
+          @click="saveCurrentBookmark"
+          :disabled="!query.trim()"
+          class="px-3 py-2 text-xs font-semibold rounded-lg scry-badge-sulphur transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          Bookmark Query
         </button>
       </div>
     </div>
 
-    <!-- Results -->
-    <div class="flex-1 overflow-auto scry-bg-card border scry-border rounded-xl p-4 shadow-sm">
-      <div v-if="error" class="p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono">
-        {{ error }}
+    <!-- Main Workspace Area -->
+    <div class="flex-1 flex space-x-4 overflow-hidden">
+      <!-- Editor & Results Section -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Editor Input Card -->
+        <div class="scry-bg-card border scry-border rounded-xl p-4 mb-4 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-bold uppercase tracking-wider scry-text-subtle">SQL Command Editor</label>
+            <div class="flex space-x-2 text-[11px]">
+              <button @click="query = 'SELECT * FROM users LIMIT 10;'" class="scry-accent-text hover:underline cursor-pointer">SELECT Users</button>
+              <span class="scry-text-subtle">&bull;</span>
+              <button @click="query = 'SHOW TABLES;'" class="scry-accent-text hover:underline cursor-pointer">SHOW Tables</button>
+            </div>
+          </div>
+
+          <textarea
+            v-model="query"
+            rows="5"
+            placeholder="Type raw SQL query here (e.g. SELECT * FROM users;)..."
+            class="w-full scry-bg-input border scry-border rounded-lg p-3 text-xs font-mono scry-accent-text focus:outline-none focus:border-pink-600 shadow-inner"
+          ></textarea>
+
+          <div class="mt-3 flex items-center justify-between">
+            <div class="text-xs font-mono scry-text-muted">
+              <span v-if="executionTimeMs !== null">Execution time: <strong class="scry-accent-text">{{ executionTimeMs }} ms</strong></span>
+            </div>
+
+            <div class="flex space-x-2">
+              <button
+                @click="query = ''"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main"
+              >
+                Clear
+              </button>
+              <button
+                @click="runQuery"
+                :disabled="executing || !query.trim()"
+                class="px-5 py-1.5 text-xs font-semibold rounded-lg scry-accent-bg disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
+              >
+                {{ executing ? 'Executing...' : 'Run Query' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output & Results Card -->
+        <div class="flex-1 overflow-auto scry-bg-card border scry-border rounded-xl p-4 shadow-sm">
+          <div v-if="error" class="p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono">
+            <strong>Execution Error:</strong> {{ error }}
+          </div>
+
+          <div v-else-if="affectedRows !== null" class="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
+            Query executed successfully. Affected rows: {{ affectedRows }}
+          </div>
+
+          <div v-else-if="results.length > 0" class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="scry-bg-header border-b scry-border scry-text-muted uppercase tracking-wider">
+                <tr>
+                  <th v-for="col in columns" :key="col" class="px-4 py-2.5">{{ col }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y scry-border-subtle scry-text-main">
+                <tr v-for="(row, i) in results" :key="i" class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td v-for="col in columns" :key="col" class="px-4 py-2 scry-text-main max-w-xs truncate" :title="row[col]">
+                    {{ row[col] }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="py-16 text-center text-xs scry-text-muted font-mono">
+            Execute a query above to display output results.
+          </div>
+        </div>
       </div>
 
-      <div v-else-if="mutationMessage" class="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono">
-        {{ mutationMessage }}
-      </div>
+      <!-- Bookmarks Drawer Sidebar -->
+      <div v-if="showBookmarksDrawer" class="w-80 scry-bg-card border scry-border rounded-xl p-4 shadow-sm flex flex-col justify-between overflow-y-auto">
+        <div>
+          <div class="flex items-center justify-between border-b scry-border pb-2 mb-3">
+            <h3 class="font-bold text-xs uppercase tracking-wider scry-text-main">SQL Bookmarks</h3>
+            <button @click="showBookmarksDrawer = false" class="text-xs scry-text-muted font-bold">&times;</button>
+          </div>
 
-      <div v-else-if="results.length === 0" class="py-12 text-center scry-text-muted text-xs font-mono">
-        No results to display. Enter a query and click Execute Query.
-      </div>
+          <div v-if="bookmarks.length === 0" class="text-xs text-center scry-text-muted py-6 font-mono">
+            No saved query bookmarks yet.
+          </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="w-full text-left text-xs font-mono">
-          <thead class="scry-bg-header border-b scry-border scry-text-muted uppercase tracking-wider">
-            <tr>
-              <th v-for="col in columns" :key="col" class="px-4 py-2.5">{{ col }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y scry-border-subtle scry-text-main">
-            <tr v-for="(row, i) in results" :key="i" class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-              <td v-for="col in columns" :key="col" class="px-4 py-2 scry-text-main max-w-xs truncate" :title="row[col]">
-                {{ row[col] }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="space-y-2">
+            <div
+              v-for="(b, idx) in bookmarks"
+              :key="idx"
+              class="p-2.5 rounded-lg border scry-border scry-bg-input text-xs font-mono space-y-1.5"
+            >
+              <div class="flex items-center justify-between font-bold scry-accent-text">
+                <span>{{ b.title }}</span>
+                <button @click="removeBookmark(idx)" class="text-rose-500 hover:underline text-[10px]">&times;</button>
+              </div>
+              <p class="scry-text-muted truncate text-[11px]">{{ b.sql }}</p>
+              <button @click="query = b.sql" class="w-full text-center px-2 py-1 rounded scry-badge-glaucous text-[10px] font-semibold cursor-pointer">
+                Load Query
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
+const route = useRoute();
 
-const queryText = ref('SELECT * FROM users LIMIT 10;');
-const results = ref([]);
-const resultColumns = ref([]);
-const executionTime = ref(null);
-const affectedRows = ref(null);
-const queryType = ref(null);
-const mutationMessage = ref('');
+const query = ref('');
 const executing = ref(false);
 const error = ref('');
+const results = ref([]);
+const columns = ref([]);
+const affectedRows = ref(null);
+const executionTimeMs = ref(null);
 
-const columns = computed(() => {
-  if (resultColumns.value.length > 0) return resultColumns.value;
-  if (results.value.length === 0) return [];
-  return Object.keys(results.value[0]);
-});
+const showBookmarksDrawer = ref(false);
+const bookmarks = ref(JSON.parse(localStorage.getItem('scry-sql-bookmarks') || '[]'));
 
 const runQuery = async () => {
+  if (!query.value.trim()) return;
+
   executing.value = true;
   error.value = '';
-  mutationMessage.value = '';
   results.value = [];
-  resultColumns.value = [];
-  executionTime.value = null;
+  columns.value = [];
   affectedRows.value = null;
-  queryType.value = null;
+  executionTimeMs.value = null;
 
   try {
     const res = await store.scryFetch('/sql/execute', {
       method: 'POST',
-      body: JSON.stringify({ query: queryText.value }),
+      body: JSON.stringify({ query: query.value }),
     });
 
     const data = await res.json();
-
     if (!res.ok || data.error) {
-      throw new Error(data.error || 'Query execution failed.');
+      throw new Error(data.error || 'Execution failed');
     }
 
-    executionTime.value = data.execution_time_ms;
-    queryType.value = data.query_type;
+    executionTimeMs.value = data.execution_time_ms || 0;
 
-    if (data.is_read) {
+    if (data.type === 'SELECT' || data.type === 'EXPLAIN' || data.data) {
       results.value = data.data || [];
-      resultColumns.value = data.columns || [];
+      columns.value = data.columns || (results.value.length > 0 ? Object.keys(results.value[0]) : []);
     } else {
-      affectedRows.value = data.affected_rows;
-      mutationMessage.value = data.message || `Query executed successfully. ${data.affected_rows} row(s) affected.`;
+      affectedRows.value = data.affected_rows ?? 0;
     }
   } catch (err) {
     error.value = err.message;
@@ -147,4 +189,24 @@ const runQuery = async () => {
     executing.value = false;
   }
 };
+
+const saveCurrentBookmark = () => {
+  const title = prompt('Enter title for this SQL bookmark:', 'Saved Query');
+  if (!title) return;
+
+  bookmarks.value.push({ title, sql: query.value });
+  localStorage.setItem('scry-sql-bookmarks', JSON.stringify(bookmarks.value));
+  showBookmarksDrawer.value = true;
+};
+
+const removeBookmark = (index) => {
+  bookmarks.value.splice(index, 1);
+  localStorage.setItem('scry-sql-bookmarks', JSON.stringify(bookmarks.value));
+};
+
+onMounted(() => {
+  if (route.query.sql) {
+    query.value = route.query.sql;
+  }
+});
 </script>

@@ -196,6 +196,24 @@ class MysqlInspector extends AbstractInspector
         return array_map(fn($row) => $row->Database ?? current((array)$row), $rows);
     }
 
+    public function renameTable(string $table, string $newName): bool
+    {
+        $sql = "RENAME TABLE " . $this->wrapIdentifier($table) . " TO " . $this->wrapIdentifier($newName);
+        return $this->connection->statement($sql);
+    }
+
+    public function copyTable(string $sourceTable, string $targetTable, bool $copyData = true): bool
+    {
+        $source = $this->wrapIdentifier($sourceTable);
+        $target = $this->wrapIdentifier($targetTable);
+
+        $this->connection->statement("CREATE TABLE {$target} LIKE {$source}");
+        if ($copyData) {
+            $this->connection->statement("INSERT INTO {$target} SELECT * FROM {$source}");
+        }
+        return true;
+    }
+
     public function getViews(): array
     {
         $dbName = $this->connection->getDatabaseName();
@@ -275,5 +293,10 @@ class MysqlInspector extends AbstractInspector
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    protected function wrapIdentifier(string $name): string
+    {
+        return '`' . str_replace('`', '``', $name) . '`';
     }
 }

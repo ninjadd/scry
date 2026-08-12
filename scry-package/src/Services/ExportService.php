@@ -175,6 +175,97 @@ class ExportService
     }
 
     /**
+     * Export dataset to Word HTML stream (.doc).
+     *
+     * @param string $table
+     * @param array $rows
+     * @return string
+     */
+    public function exportWord(string $table, array $rows): string
+    {
+        if (empty($rows)) {
+            return "<html><body><h3>No records to export for {$table}</h3></body></html>";
+        }
+
+        $firstRow = (array)$rows[0];
+        $cols = array_keys($firstRow);
+
+        $html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>";
+        $html .= "<head><title>Scry Data Export - {$table}</title><style>
+            body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #b91c5c; padding: 6px; text-align: left; }
+            th { background-color: #384950; color: #ffffff; font-weight: bold; }
+            h2 { color: #b91c5c; }
+        </style></head><body>";
+
+        $html .= "<h2>Scry Database Export: " . htmlspecialchars($table) . "</h2>";
+        $html .= "<table><thead><tr>";
+        foreach ($cols as $c) {
+            $html .= "<th>" . htmlspecialchars($c) . "</th>";
+        }
+        $html .= "</tr></thead><tbody>";
+
+        foreach ($rows as $r) {
+            $html .= "<tr>";
+            foreach ($cols as $c) {
+                $v = ((array)$r)[$c] ?? '';
+                $formatted = is_array($v) || is_object($v) ? json_encode($v) : (string)$v;
+                $html .= "<td>" . htmlspecialchars($formatted) . "</td>";
+            }
+            $html .= "</tr>";
+        }
+
+        $html .= "</tbody></table></body></html>";
+        return $html;
+    }
+
+    /**
+     * Export dataset to OpenDocument XML stream (.odt).
+     *
+     * @param string $table
+     * @param array $rows
+     * @return string
+     */
+    public function exportOdt(string $table, array $rows): string
+    {
+        $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        $xml .= "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\">\n";
+        $xml .= "  <office:body>\n";
+        $xml .= "    <office:text>\n";
+        $xml .= "      <text:h text:outline-level=\"1\">Scry Table Export: " . htmlspecialchars($table) . "</text:h>\n";
+        $xml .= "      <table:table table:name=\"" . htmlspecialchars($table) . "\">\n";
+
+        if (!empty($rows)) {
+            $firstRow = (array)$rows[0];
+            $cols = array_keys($firstRow);
+
+            $xml .= "        <table:table-row>\n";
+            foreach ($cols as $c) {
+                $xml .= "          <table:table-cell><text:p text:style-name=\"Table_20_Header\">" . htmlspecialchars($c) . "</text:p></table:table-cell>\n";
+            }
+            $xml .= "        </table:table-row>\n";
+
+            foreach ($rows as $r) {
+                $xml .= "        <table:table-row>\n";
+                foreach ($cols as $c) {
+                    $v = ((array)$r)[$c] ?? '';
+                    $formatted = is_array($v) || is_object($v) ? json_encode($v) : (string)$v;
+                    $xml .= "          <table:table-cell><text:p>" . htmlspecialchars($formatted) . "</text:p></table:table-cell>\n";
+                }
+                $xml .= "        </table:table-row>\n";
+            }
+        }
+
+        $xml .= "      </table:table>\n";
+        $xml .= "    </office:text>\n";
+        $xml .= "  </office:body>\n";
+        $xml .= "</office:document-content>\n";
+
+        return $xml;
+    }
+
+    /**
      * Export dataset to LaTeX tabular format.
      *
      * @param string $table
