@@ -1,9 +1,9 @@
 <?php
 
-namespace Scry\DatabaseManager\Inspectors;
+namespace Scry\Inspectors;
 
 use Illuminate\Database\Connection;
-use Scry\DatabaseManager\Contracts\DatabaseInspector;
+use Scry\Contracts\DatabaseInspector;
 
 abstract class AbstractInspector implements DatabaseInspector
 {

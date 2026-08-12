@@ -1,6 +1,6 @@
 <?php
 
-namespace Scry\DatabaseManager\Contracts;
+namespace Scry\Contracts;
 
 interface DatabaseInspector
 {
@@ -26,7 +26,7 @@ interface DatabaseInspector
      * @param int $page
      * @param int $perPage
      * @param string|null $sortBy
-     * @param string $sortDir
+     * @string $sortDir
      * @return array
      */
     public function getPaginatedRows(

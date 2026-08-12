@@ -1,17 +1,9 @@
 <?php
 
-namespace Scry\DatabaseManager\Inspectors;
+namespace Scry\Inspectors;
 
 class PostgresInspector extends AbstractInspector
 {
-    /**
-     * Get all base tables in the public schema with relation size and row count estimates.
-     *
-     * Queries:
-     * - information_schema.tables
-     * - pg_catalog.pg_class
-     * - pg_catalog.pg_namespace
-     */
     public function getTables(): array
     {
         $query = "
@@ -40,17 +32,8 @@ class PostgresInspector extends AbstractInspector
         }, $rows);
     }
 
-    /**
-     * Get detailed table schema (columns, data types, nullability, default values, primary keys, foreign keys, indexes).
-     *
-     * Queries:
-     * - information_schema.columns
-     * - pg_catalog.pg_index / pg_attribute / pg_class
-     * - pg_catalog.pg_constraint
-     */
     public function getTableSchema(string $table): array
     {
-        // 1. Column Metadata
         $columnsQuery = "
             SELECT 
                 c.column_name AS name,
@@ -76,7 +59,6 @@ class PostgresInspector extends AbstractInspector
             ];
         }, $columnsRaw);
 
-        // 2. Indexes Metadata from pg_catalog
         $indexesQuery = "
             SELECT
                 i.relname AS index_name,
@@ -103,7 +85,6 @@ class PostgresInspector extends AbstractInspector
             ];
         }, $indexesRaw);
 
-        // 3. Foreign Keys Metadata from pg_catalog.pg_constraint
         $foreignKeysQuery = "
             SELECT
                 con.conname AS constraint_name,

@@ -1,6 +1,6 @@
 <?php
 
-namespace Scry\DatabaseManager;
+namespace Scry;
 
 use Illuminate\Support\ServiceProvider;
 

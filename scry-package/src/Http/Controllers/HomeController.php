@@ -1,6 +1,6 @@
 <?php
 
-namespace Scry\DatabaseManager\Http\Controllers;
+namespace Scry\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 

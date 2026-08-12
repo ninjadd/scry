@@ -1,10 +1,10 @@
 <?php
 
-namespace Scry\DatabaseManager\Http\Controllers;
+namespace Scry\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Scry\DatabaseManager\DatabaseExplorerManager;
+use Scry\DatabaseExplorerManager;
 
 class DatabaseController extends Controller
 {

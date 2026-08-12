@@ -1,6 +1,6 @@
 {
-    "name": "scry/database-manager",
-    "description": "A modern, local database manager and explorer GUI for Laravel applications.",
+    "name": "scry/scry",
+    "description": "A modern, reactive local database manager and explorer GUI for Laravel applications.",
     "license": "MIT",
     "keywords": [
         "laravel",
@@ -28,18 +28,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Scry\\DatabaseManager\\": "src/"
+            "Scry\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Scry\\DatabaseManager\\Tests\\": "tests/"
+            "Scry\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Scry\\DatabaseManager\\DatabaseManagerServiceProvider"
+                "Scry\\DatabaseManagerServiceProvider"
             ]
         }
     },

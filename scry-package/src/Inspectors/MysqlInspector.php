@@ -1,6 +1,6 @@
 <?php
 
-namespace Scry\DatabaseManager\Inspectors;
+namespace Scry\Inspectors;
 
 class MysqlInspector extends AbstractInspector
 {
@@ -18,7 +18,7 @@ class MysqlInspector extends AbstractInspector
             ORDER BY TABLE_NAME ASC;
         ";
 
-        return array_map(function ($row) use ($dbName) {
+        return array_map(function ($row) {
             return [
                 'name' => $row->name,
                 'size' => ($row->size_mb ?? 0) . ' MB',
@@ -31,7 +31,6 @@ class MysqlInspector extends AbstractInspector
     {
         $dbName = $this->connection->getDatabaseName();
 
-        // Columns
         $columnsQuery = "
             SELECT 
                 COLUMN_NAME AS name,
@@ -45,7 +44,6 @@ class MysqlInspector extends AbstractInspector
         ";
         $columns = $this->connection->select($columnsQuery, [$dbName, $table]);
 
-        // Indexes
         $indexesQuery = "
             SELECT 
                 INDEX_NAME AS index_name,

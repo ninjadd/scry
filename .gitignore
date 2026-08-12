@@ -2,4 +2,7 @@
 /node_modules
 .env
 .DS_Store
-workbench/public/vendor/
+scry-package/node_modules
+scry-package/vendor
+dummy-app/vendor
+dummy-app/public/vendor

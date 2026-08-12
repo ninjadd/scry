@@ -1,12 +1,12 @@
 <?php
 
-namespace Scry\DatabaseManager;
+namespace Scry;
 
 use Illuminate\Support\Manager;
 use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
-use Scry\DatabaseManager\Contracts\DatabaseInspector;
-use Scry\DatabaseManager\Inspectors\MysqlInspector;
-use Scry\DatabaseManager\Inspectors\PostgresInspector;
+use Scry\Contracts\DatabaseInspector;
+use Scry\Inspectors\MysqlInspector;
+use Scry\Inspectors\PostgresInspector;
 use InvalidArgumentException;
 
 class DatabaseExplorerManager extends Manager

@@ -2,7 +2,7 @@
 
 return [
 
-    'name' => 'Scry Workbench',
+    'name' => 'Scry Dummy App',
     'env' => env('APP_ENV', 'local'),
     'debug' => (bool) env('APP_DEBUG', true),
     'url' => env('APP_URL', 'http://localhost:8000'),
@@ -28,7 +28,7 @@ return [
         Illuminate\View\ViewServiceProvider::class,
 
         /* Package Service Provider */
-        Scry\DatabaseManager\DatabaseManagerServiceProvider::class,
+        Scry\DatabaseManagerServiceProvider::class,
     ],
 
 ];

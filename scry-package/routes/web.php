@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Scry\DatabaseManager\Http\Controllers\HomeController;
-use Scry\DatabaseManager\Http\Middleware\Authorize;
+use Scry\Http\Controllers\HomeController;
+use Scry\Http\Middleware\Authorize;
 
 Route::group([
     'prefix' => config('database-manager.path', 'db-manager'),
