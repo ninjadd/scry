@@ -7,3 +7,6 @@ scry-package/vendor
 dummy-app/vendor
 dummy-app/public/vendor
 dummy-app/.env
+dummy-app/bootstrap/cache/
+dummy-app/storage/
+dummy-app/composer.lock

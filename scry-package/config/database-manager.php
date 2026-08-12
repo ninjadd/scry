@@ -4,21 +4,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Database Manager Path
+    | Scry Path
     |--------------------------------------------------------------------------
     |
-    | This is the URI path where Database Manager will be accessible from.
+    | The URI path where Scry Database Manager will be accessible from.
     |
     */
 
-    'path' => env('DB_MANAGER_PATH', 'db-manager'),
+    'path' => env('SCRY_PATH', env('DB_MANAGER_PATH', 'scry')),
 
     /*
     |--------------------------------------------------------------------------
-    | Database Manager Route Middleware
+    | Route Middleware
     |--------------------------------------------------------------------------
     |
-    | These middleware will be assigned to every Database Manager route.
+    | Middleware assigned to Scry routes.
     |
     */
 
@@ -31,7 +31,7 @@ return [
     | Allowed Environments
     |--------------------------------------------------------------------------
     |
-    | By default, Database Manager is only accessible in local environment.
+    | Restricted to local environment by default.
     |
     */
 
@@ -41,12 +41,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Database Connection
+    | Default Connection
     |--------------------------------------------------------------------------
     |
-    | The connection to inspect. If null, uses default DB connection.
+    | Connection to inspect. If null, uses application default DB connection.
     |
     */
 
-    'connection' => env('DB_MANAGER_CONNECTION', null),
+    'connection' => env('SCRY_CONNECTION', env('DB_MANAGER_CONNECTION', null)),
 ];

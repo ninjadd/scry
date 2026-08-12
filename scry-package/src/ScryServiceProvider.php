@@ -3,7 +3,6 @@
 namespace Scry;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
 
 class ScryServiceProvider extends ServiceProvider
 {
@@ -37,16 +36,12 @@ class ScryServiceProvider extends ServiceProvider
 
     /**
      * Register the package routes.
+     * Loads API routes before web SPA fallback routes.
      */
     protected function registerRoutes(): void
     {
-        Route::group([
-            'prefix' => config('scry.path', 'scry'),
-            'middleware' => config('scry.middleware', ['web']),
-        ], function () {
-            $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
-            $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
-        });
+        $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
+        $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
     }
 
     /**
