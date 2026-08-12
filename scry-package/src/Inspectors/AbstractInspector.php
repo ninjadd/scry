@@ -2,19 +2,14 @@
 
 namespace Scry\Inspectors;
 
-use Illuminate\Database\Connection;
+use Illuminate\Database\ConnectionInterface;
 use Scry\Contracts\DatabaseInspector;
 
 abstract class AbstractInspector implements DatabaseInspector
 {
-    public function __construct(protected Connection $connection)
-    {
-    }
-
-    public function getConnection(): Connection
-    {
-        return $this->connection;
-    }
+    public function __construct(
+        protected ConnectionInterface $connection
+    ) {}
 
     public function getPaginatedRows(
         string $table,
@@ -28,32 +23,67 @@ abstract class AbstractInspector implements DatabaseInspector
         $total = $query->count();
 
         if ($sortBy) {
-            $query->orderBy($sortBy, strtolower($sortDir) === 'desc' ? 'desc' : 'asc');
+            $direction = strtolower($sortDir) === 'desc' ? 'desc' : 'asc';
+            $query->orderBy($sortBy, $direction);
         }
 
-        $items = $query->forPage($page, $perPage)->get();
+        $items = $query->forPage($page, $perPage)->get()->toArray();
 
         return [
+            'table' => $table,
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'last_page' => (int) ceil($total / max(1, $perPage)),
             'data' => $items,
-            'meta' => [
-                'total' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-                'last_page' => max(1, (int) ceil($total / $perPage)),
-            ],
         ];
+    }
+
+    public function insertRow(string $table, array $data): bool
+    {
+        return $this->connection->table($table)->insert($data);
+    }
+
+    public function updateRow(string $table, array $primaryKey, array $data): bool
+    {
+        $query = $this->connection->table($table);
+
+        foreach ($primaryKey as $column => $value) {
+            if ($value === null) {
+                $query->whereNull($column);
+            } else {
+                $query->where($column, $value);
+            }
+        }
+
+        return $query->update($data) >= 0;
+    }
+
+    public function deleteRow(string $table, array $primaryKey): bool
+    {
+        $query = $this->connection->table($table);
+
+        foreach ($primaryKey as $column => $value) {
+            if ($value === null) {
+                $query->whereNull($column);
+            } else {
+                $query->where($column, $value);
+            }
+        }
+
+        return $query->delete() > 0;
     }
 
     public function executeQuery(string $query): array
     {
-        $start = microtime(true);
+        $startTime = microtime(true);
         $results = $this->connection->select($query);
-        $executionTime = round((microtime(true) - $start) * 1000, 2);
+        $executionTime = round((microtime(true) - $startTime) * 1000, 2);
 
         return [
-            'results' => $results,
             'execution_time_ms' => $executionTime,
-            'count' => count($results),
+            'row_count' => count($results),
+            'data' => $results,
         ];
     }
 }

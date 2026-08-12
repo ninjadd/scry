@@ -12,7 +12,7 @@ interface DatabaseInspector
     public function getTables(): array;
 
     /**
-     * Get column details for a specific table (name, data_type, nullable, default_value, is_primary, is_foreign_key).
+     * Get column details for a specific table.
      *
      * @param string $table
      * @return array
@@ -52,6 +52,34 @@ interface DatabaseInspector
         ?string $sortBy = null,
         string $sortDir = 'asc'
     ): array;
+
+    /**
+     * Insert a new row into the table.
+     *
+     * @param string $table
+     * @param array $data
+     * @return bool
+     */
+    public function insertRow(string $table, array $data): bool;
+
+    /**
+     * Update an existing row in the table using primary key criteria.
+     *
+     * @param string $table
+     * @param array $primaryKey Key-value pairs identifying the target row (supports composite keys)
+     * @param array $data Key-value pairs of columns to update
+     * @return bool
+     */
+    public function updateRow(string $table, array $primaryKey, array $data): bool;
+
+    /**
+     * Delete a row from the table using primary key criteria.
+     *
+     * @param string $table
+     * @param array $primaryKey Key-value pairs identifying the target row (supports composite keys)
+     * @return bool
+     */
+    public function deleteRow(string $table, array $primaryKey): bool;
 
     /**
      * Execute a raw SQL query against the connection.

@@ -16,6 +16,12 @@ Route::group([
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');
     Route::get('/tables/{table}/data', [ApiController::class, 'rows'])->name('data');
+
+    // Row-Level CRUD Routes
+    Route::post('/tables/{table}/rows', [ApiController::class, 'insertRow'])->name('rows.insert');
+    Route::put('/tables/{table}/rows', [ApiController::class, 'updateRow'])->name('rows.update');
+    Route::delete('/tables/{table}/rows', [ApiController::class, 'deleteRow'])->name('rows.delete');
+
     Route::post('/query', [ApiController::class, 'query'])->name('query');
 });
 
@@ -29,6 +35,11 @@ if ($path !== 'db-manager') {
         Route::get('/tables/{table}/schema', [ApiController::class, 'schema']);
         Route::get('/tables/{table}/rows', [ApiController::class, 'rows']);
         Route::get('/tables/{table}/data', [ApiController::class, 'rows']);
+
+        Route::post('/tables/{table}/rows', [ApiController::class, 'insertRow']);
+        Route::put('/tables/{table}/rows', [ApiController::class, 'updateRow']);
+        Route::delete('/tables/{table}/rows', [ApiController::class, 'deleteRow']);
+
         Route::post('/query', [ApiController::class, 'query']);
     });
 }

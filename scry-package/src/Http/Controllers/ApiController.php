@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Scry\DatabaseExplorerManager;
 use Scry\Exceptions\UnsupportedDriverException;
+use PDOException;
+use Throwable;
 
 class ApiController extends Controller
 {
@@ -74,6 +76,114 @@ class ApiController extends Controller
     }
 
     /**
+     * POST /scry/api/tables/{table}/rows
+     * Inserts a new row into the table.
+     */
+    public function insertRow(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'data' => 'required|array',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $data = $request->input('data');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->insertRow($table, $data);
+
+            return response()->json([
+                'success' => $success,
+                'message' => 'Row inserted successfully.',
+            ], 201);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (PDOException $e) {
+            return response()->json([
+                'error' => 'Database error: ' . $e->getMessage(),
+                'code' => $e->getCode(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * PUT /scry/api/tables/{table}/rows
+     * Updates an existing row in the table by primary key.
+     */
+    public function updateRow(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'primary_key' => 'required|array',
+            'data' => 'required|array',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $primaryKey = $request->input('primary_key');
+        $data = $request->input('data');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->updateRow($table, $primaryKey, $data);
+
+            return response()->json([
+                'success' => $success,
+                'message' => 'Row updated successfully.',
+            ]);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (PDOException $e) {
+            return response()->json([
+                'error' => 'Database error: ' . $e->getMessage(),
+                'code' => $e->getCode(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/tables/{table}/rows
+     * Deletes a row from the table by primary key.
+     */
+    public function deleteRow(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'primary_key' => 'required|array',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $primaryKey = $request->input('primary_key') ?? json_decode($request->query('primary_key', '{}'), true);
+
+        if (empty($primaryKey)) {
+            return response()->json(['error' => 'Primary key condition is required for deletion.'], 422);
+        }
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->deleteRow($table, $primaryKey);
+
+            return response()->json([
+                'success' => $success,
+                'message' => $success ? 'Row deleted successfully.' : 'No row matched primary key condition.',
+            ]);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (PDOException $e) {
+            return response()->json([
+                'error' => 'Database error: ' . $e->getMessage(),
+                'code' => $e->getCode(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * POST /scry/api/query
      * Executes raw SQL query and returns formatted result set.
      */
@@ -92,7 +202,7 @@ class ApiController extends Controller
             return response()->json($inspector->executeQuery($sql));
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return response()->json([
                 'error' => $e->getMessage(),
             ], 422);
