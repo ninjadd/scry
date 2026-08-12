@@ -12,6 +12,13 @@ Route::group([
     'middleware' => $middleware,
     'as' => 'scry.api.',
 ], function () {
+    // Server Stats
+    Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
+
+    // Export Data
+    Route::get('/export/{table}', [ApiController::class, 'exportTable'])->name('export');
+
+    // Tables & Rows
     Route::get('/tables', [ApiController::class, 'tables'])->name('tables');
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');
@@ -33,6 +40,9 @@ if ($path !== 'db-manager') {
         'middleware' => $middleware,
         'as' => 'scry.api.alias.',
     ], function () {
+        Route::get('/server/stats', [ApiController::class, 'serverStats']);
+        Route::get('/export/{table}', [ApiController::class, 'exportTable']);
+
         Route::get('/tables', [ApiController::class, 'tables']);
         Route::get('/tables/{table}/schema', [ApiController::class, 'schema']);
         Route::get('/tables/{table}/rows', [ApiController::class, 'rows']);

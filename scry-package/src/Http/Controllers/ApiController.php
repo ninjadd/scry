@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Scry\DatabaseExplorerManager;
 use Scry\Exceptions\UnsupportedDriverException;
+use Scry\Services\ExportService;
 use Scry\Services\SqlRunner;
 use PDOException;
 use Throwable;
@@ -15,8 +16,63 @@ class ApiController extends Controller
 {
     public function __construct(
         protected DatabaseExplorerManager $manager,
-        protected SqlRunner $sqlRunner
+        protected SqlRunner $sqlRunner,
+        protected ExportService $exportService
     ) {}
+
+    /**
+     * GET /scry/api/server/stats
+     * Returns database server metrics, version, storage size, and active connection statistics.
+     */
+    public function serverStats(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            return response()->json($inspector->getServerStats());
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * GET /scry/api/export/{table}
+     * Export table data as downloadable CSV or SQL dump file.
+     */
+    public function exportTable(string $table, Request $request)
+    {
+        $connection = $request->query('connection');
+        $format = strtolower($request->query('format', 'csv'));
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+            
+            $rowsData = $inspector->getPaginatedRows($table, 1, 5000);
+            $rows = $rowsData['data'] ?? [];
+
+            if ($format === 'sql') {
+                $content = $this->exportService->exportSql($table, $rows, $driver);
+                $contentType = 'text/plain';
+                $filename = "{$table}_dump.sql";
+            } else {
+                $content = $this->exportService->exportCsv($rows);
+                $contentType = 'text/csv';
+                $filename = "{$table}_export.csv";
+            }
+
+            return response($content, 200, [
+                'Content-Type' => $contentType,
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                'Cache-Control' => 'no-cache, private',
+            ]);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
 
     /**
      * GET /scry/api/tables

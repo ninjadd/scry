@@ -164,4 +164,46 @@ class PostgresInspector extends AbstractInspector
             ];
         }, $foreignKeysRaw);
     }
+
+    /**
+     * Get PostgreSQL server stats (storage size, connection metrics from pg_stat_activity).
+     */
+    public function getServerStats(): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+
+        $sizeRaw = $this->connection->select("
+            SELECT pg_size_pretty(pg_database_size(?)) AS size, pg_database_size(?) AS size_bytes;
+        ", [$dbName, $dbName]);
+
+        $dbSize = $sizeRaw[0]->size ?? '0 B';
+        $dbSizeBytes = (int) ($sizeRaw[0]->size_bytes ?? 0);
+
+        $connectionsRaw = $this->connection->select("
+            SELECT 
+                COUNT(*) AS total_connections,
+                COUNT(*) FILTER (WHERE state = 'active') AS active_connections,
+                COUNT(*) FILTER (WHERE state = 'idle') AS idle_connections
+            FROM pg_stat_activity
+            WHERE datname = ?;
+        ", [$dbName]);
+
+        $totalConnections = (int) ($connectionsRaw[0]->total_connections ?? 0);
+        $activeConnections = (int) ($connectionsRaw[0]->active_connections ?? 0);
+        $idleConnections = (int) ($connectionsRaw[0]->idle_connections ?? 0);
+
+        $versionRaw = $this->connection->select("SELECT version();");
+        $version = $versionRaw[0]->version ?? 'PostgreSQL';
+
+        return [
+            'database_name' => $dbName,
+            'driver' => 'pgsql',
+            'version' => $version,
+            'storage_size' => $dbSize,
+            'storage_size_bytes' => $dbSizeBytes,
+            'total_connections' => $totalConnections,
+            'active_connections' => $activeConnections,
+            'idle_connections' => $idleConnections,
+        ];
+    }
 }

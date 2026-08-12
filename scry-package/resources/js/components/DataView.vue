@@ -12,6 +12,24 @@
       </div>
 
       <div class="flex items-center space-x-3">
+        <a
+          :href="`${baseApiUrl}/export/${table}?format=csv&connection=${connection || ''}`"
+          target="_blank"
+          download
+          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-glaucous hover:opacity-80 transition-opacity shadow-sm flex items-center space-x-1"
+        >
+          <span>📥</span>
+          <span>Export CSV</span>
+        </a>
+        <a
+          :href="`${baseApiUrl}/export/${table}?format=sql&connection=${connection || ''}`"
+          target="_blank"
+          download
+          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-sulphur hover:opacity-80 transition-opacity shadow-sm flex items-center space-x-1"
+        >
+          <span>💾</span>
+          <span>Export SQL</span>
+        </a>
         <router-link
           :to="{ name: 'schema', params: { table }, query: { connection } }"
           class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-pale-blue transition-colors shadow-sm"

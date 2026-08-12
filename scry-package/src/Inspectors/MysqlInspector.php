@@ -149,4 +149,45 @@ class MysqlInspector extends AbstractInspector
             ];
         }, $foreignKeysRaw);
     }
+
+    /**
+     * Get MySQL server stats (storage size from TABLES, active connections from SHOW PROCESSLIST).
+     */
+    public function getServerStats(): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+
+        $sizeRaw = $this->connection->select("
+            SELECT 
+                SUM(DATA_LENGTH + INDEX_LENGTH) AS size_bytes
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = ?;
+        ", [$dbName]);
+
+        $sizeBytes = (int) ($sizeRaw[0]->size_bytes ?? 0);
+        $sizeFormatted = match (true) {
+            $sizeBytes >= 1048576 => number_format($sizeBytes / 1048576, 2) . ' MB',
+            $sizeBytes >= 1024 => number_format($sizeBytes / 1024, 2) . ' kB',
+            default => $sizeBytes . ' B',
+        };
+
+        $connectionsRaw = $this->connection->select("SHOW PROCESSLIST;");
+        $totalConnections = count($connectionsRaw);
+        $activeConnections = count(array_filter($connectionsRaw, fn($conn) => ($conn->Command ?? '') !== 'Sleep'));
+        $idleConnections = $totalConnections - $activeConnections;
+
+        $versionRaw = $this->connection->select("SELECT VERSION() AS version;");
+        $version = $versionRaw[0]->version ?? 'MySQL';
+
+        return [
+            'database_name' => $dbName,
+            'driver' => 'mysql',
+            'version' => $version,
+            'storage_size' => $sizeFormatted,
+            'storage_size_bytes' => $sizeBytes,
+            'total_connections' => $totalConnections,
+            'active_connections' => $activeConnections,
+            'idle_connections' => $idleConnections,
+        ];
+    }
 }

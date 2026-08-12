@@ -5,7 +5,7 @@ namespace Scry\Contracts;
 interface DatabaseInspector
 {
     /**
-     * Get a list of all tables in the database with basic metadata (name, size, row count).
+     * Get a list of all tables in the database with basic metadata.
      *
      * @return array
      */
@@ -66,7 +66,7 @@ interface DatabaseInspector
      * Update an existing row in the table using primary key criteria.
      *
      * @param string $table
-     * @param array $primaryKey Key-value pairs identifying the target row (supports composite keys)
+     * @param array $primaryKey Key-value pairs identifying the target row
      * @param array $data Key-value pairs of columns to update
      * @return bool
      */
@@ -76,10 +76,17 @@ interface DatabaseInspector
      * Delete a row from the table using primary key criteria.
      *
      * @param string $table
-     * @param array $primaryKey Key-value pairs identifying the target row (supports composite keys)
+     * @param array $primaryKey Key-value pairs identifying the target row
      * @return bool
      */
     public function deleteRow(string $table, array $primaryKey): bool;
+
+    /**
+     * Get server-level performance metrics, storage usage, and active connection statistics.
+     *
+     * @return array
+     */
+    public function getServerStats(): array;
 
     /**
      * Execute a raw SQL query against the connection.
