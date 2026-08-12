@@ -1,7 +1,7 @@
 FROM php:8.3-cli-alpine
 
 # Install system dependencies & PostgreSQL / MySQL client headers
-RUN apk add --no-gradient --no-cache \
+RUN apk add --no-cache \
     git \
     curl \
     unzip \
@@ -27,4 +27,4 @@ WORKDIR /var/www/html
 
 EXPOSE 8000
 
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "workbench/public"]

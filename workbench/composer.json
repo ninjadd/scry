@@ -1,0 +1,31 @@
+{
+    "name": "scry/workbench",
+    "type": "project",
+    "description": "Local Laravel workbench test application for scry/database-manager",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^10.0|^11.0",
+        "scry/database-manager": "@dev"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Workbench\\App\\": "app/",
+            "Workbench\\Database\\Factories\\": "database/factories/",
+            "Workbench\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
