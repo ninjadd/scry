@@ -1,12 +1,12 @@
 # Scry Database Manager Package (`scry/scry`)
 
-Scry is an open-source, enterprise-grade database manager package for Laravel applications. It provides a modern, reactive Vue 3 GUI to inspect multi-database engines (PostgreSQL, MySQL, MariaDB) in real time.
+Scry is an open-source, enterprise-grade database manager package for Laravel applications. It provides a modern, reactive Vue 3 GUI to inspect and manage multi-database engines (PostgreSQL, MySQL, MariaDB) in real time.
 
 ---
 
 ## Seasons #63 Design Tokens & Theme System
 
-The Scry package UI is styled using custom design tokens derived from the **Seasons #63** color palette.
+The Scry package UI is styled using custom design tokens derived from the **Seasons #63** color palette and clean typography with zero emojis (strictly SVG icon system).
 
 | Token | Color Name | Hex Code | Purpose / Application |
 | --- | --- | --- | --- |
@@ -35,7 +35,10 @@ src/
 │   └── UnsupportedDriverException.php # Custom driver resolution exception
 ├── Services/
 │   ├── SqlRunner.php                 # Query type detection & SQL execution
-│   └── ExportService.php             # CSV and SQL dump generators
+│   ├── ExportService.php             # ExportService (CSV, SQL, XML, PDF, Word .doc, ODT, JSON, LaTeX)
+│   ├── ImportService.php             # ImportService (SQL script & CSV streaming batch parser)
+│   ├── GlobalSearchService.php       # Global Search Service across text columns & tables
+│   └── ServerTuningAdvisor.php       # MySQL Status Variables & Buffer Pool Tuning Advisor
 ├── Inspectors/
 │   ├── AbstractInspector.php          # Base inspector & safe query builder pagination
 │   ├── PostgresInspector.php          # PostgreSQL catalog inspector (jsonb, uuid, timestamptz)
@@ -53,13 +56,26 @@ routes/
 
 resources/
 ├── js/
-│   ├── App.vue                        # SPA Shell & Side Nav Theme Toggle
+│   ├── App.vue                        # SPA Shell, Categorized Nav & Side Nav Theme Toggle
+│   ├── app.js                         # Vue 3 App entry point
 │   ├── app.css                        # Seasons #63 CSS Custom Properties
+│   ├── router.js                      # Vue Router mapping 12 views
+│   ├── stores/
+│   │   └── useConnectionStore.js      # Connection switcher Pinia store
+│   ├── views/
+│   │   ├── DashboardView.vue          # Real-time server performance metrics and stats
+│   │   ├── TableBrowserView.vue       # Table browser with Create Table, Copy Table, Rename Table modals
+│   │   ├── DataGridView.vue           # Paginated data table grid with CSV/SQL exports
+│   │   ├── QueryRunnerView.vue        # Raw SQL console with Bookmarks & Query History Drawer
+│   │   ├── QueryBuilderQBEView.vue    # Visual QBE query builder (edit in console or execute directly)
+│   │   ├── SchemaVisualizerERDView.vue # ERD diagram visualizer (Export Mermaid, SVG, PNG)
+│   │   ├── ServerTuningView.vue       # Database server optimization recommendations
+│   │   ├── GlobalSearchView.vue       # Cross-table string pattern search
+│   │   ├── UserManagementView.vue     # MySQL user accounts & Create User / Privilege Matrix modals
+│   │   ├── RoutinesView.vue           # Stored Procedures, Functions, & Triggers manager with creation modals
+│   │   └── ImportExportView.vue       # Multi-format import and export tool studio (.doc & .odt added)
 │   └── components/
-│       ├── TableList.vue              # Table grid & storage statistics
-│       ├── SchemaView.vue             # Column types, indexes, and foreign keys
-│       ├── DataView.vue               # Paginated and sortable row data grid
-│       └── QueryConsole.vue           # SQL console read & mutation query executor
+│       └── BlobTransformComponent.vue # BLOB image preview, hex view, and binary download
 └── views/
     └── index.blade.php                # Host Blade container view
 ```
@@ -84,6 +100,17 @@ interface DatabaseInspector
     public function updateRow(string $table, array $primaryKey, array $data): bool;
     public function deleteRow(string $table, array $primaryKey): bool;
     public function getServerStats(): array;
+    public function getDatabases(): array;
+    public function createDatabase(string $name, ?string $charset = null, ?string $collation = null): bool;
+    public function dropDatabase(string $name): bool;
+    public function dropTable(string $table): bool;
+    public function renameTable(string $table, string $newName): bool;
+    public function copyTable(string $sourceTable, string $targetTable, bool $copyData = true): bool;
+    public function getViews(): array;
+    public function getTriggers(): array;
+    public function getProcedures(): array;
+    public function hasUserManagementPrivileges(): bool;
+    public function getUsers(): array;
     public function executeQuery(string $query): array;
 }
 ```
