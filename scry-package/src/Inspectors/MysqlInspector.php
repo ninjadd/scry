@@ -41,7 +41,6 @@ class MysqlInspector extends AbstractInspector
 
     /**
      * Get column schema definitions for a specific MySQL table.
-     * Output structure is normalized to match PostgresInspector.
      */
     public function getTableSchema(string $table): array
     {
@@ -151,7 +150,7 @@ class MysqlInspector extends AbstractInspector
     }
 
     /**
-     * Get MySQL server stats (storage size from TABLES, active connections from SHOW PROCESSLIST).
+     * Get MySQL server stats (storage size, active connections).
      */
     public function getServerStats(): array
     {
@@ -189,5 +188,92 @@ class MysqlInspector extends AbstractInspector
             'active_connections' => $activeConnections,
             'idle_connections' => $idleConnections,
         ];
+    }
+
+    public function getDatabases(): array
+    {
+        $rows = $this->connection->select("SHOW DATABASES;");
+        return array_map(fn($row) => $row->Database ?? current((array)$row), $rows);
+    }
+
+    public function getViews(): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+        $rows = $this->connection->select("
+            SELECT TABLE_NAME AS name 
+            FROM information_schema.VIEWS 
+            WHERE TABLE_SCHEMA = ?
+            ORDER BY TABLE_NAME ASC;
+        ", [$dbName]);
+
+        return array_map(fn($r) => ['name' => $r->name], $rows);
+    }
+
+    public function getTriggers(): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+        $rows = $this->connection->select("
+            SELECT 
+                TRIGGER_NAME AS name, 
+                EVENT_MANIPULATION AS event, 
+                EVENT_OBJECT_TABLE AS table_name, 
+                ACTION_TIMING AS timing 
+            FROM information_schema.TRIGGERS 
+            WHERE TRIGGER_SCHEMA = ?
+            ORDER BY TRIGGER_NAME ASC;
+        ", [$dbName]);
+
+        return array_map(fn($r) => [
+            'name' => $r->name,
+            'event' => $r->event,
+            'table_name' => $r->table_name,
+            'timing' => $r->timing,
+        ], $rows);
+    }
+
+    public function getProcedures(): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+        $rows = $this->connection->select("
+            SELECT 
+                ROUTINE_NAME AS name, 
+                ROUTINE_TYPE AS type, 
+                DATA_TYPE AS return_type 
+            FROM information_schema.ROUTINES 
+            WHERE ROUTINE_SCHEMA = ?
+            ORDER BY ROUTINE_NAME ASC;
+        ", [$dbName]);
+
+        return array_map(fn($r) => [
+            'name' => $r->name,
+            'type' => $r->type,
+            'return_type' => $r->return_type,
+        ], $rows);
+    }
+
+    public function hasUserManagementPrivileges(): bool
+    {
+        try {
+            $grants = $this->connection->select("SHOW GRANTS FOR CURRENT_USER();");
+            $grantsStr = strtoupper(json_encode($grants));
+
+            return str_contains($grantsStr, 'ALL PRIVILEGES') || str_contains($grantsStr, 'CREATE USER') || str_contains($grantsStr, 'GRANT OPTION');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function getUsers(): array
+    {
+        if (!$this->hasUserManagementPrivileges()) {
+            return [];
+        }
+
+        try {
+            $users = $this->connection->select("SELECT User AS user, Host AS host FROM mysql.user ORDER BY User ASC;");
+            return array_map(fn($u) => ['user' => $u->user, 'host' => $u->host], $users);
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 }

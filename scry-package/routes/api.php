@@ -12,10 +12,26 @@ Route::group([
     'middleware' => $middleware,
     'as' => 'scry.api.',
 ], function () {
-    // Server Stats
-    Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
+    // Database Operations
+    Route::get('/databases', [ApiController::class, 'databases'])->name('databases');
+    Route::post('/databases', [ApiController::class, 'createDatabase'])->name('databases.create');
+    Route::delete('/databases', [ApiController::class, 'dropDatabase'])->name('databases.drop');
 
-    // Export Data
+    // Server Stats & Tuning
+    Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
+    Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions'])->name('server.tuning');
+
+    // Routines & Triggers
+    Route::get('/views', [ApiController::class, 'views'])->name('views');
+    Route::get('/triggers', [ApiController::class, 'triggers'])->name('triggers');
+    Route::get('/procedures', [ApiController::class, 'procedures'])->name('procedures');
+
+    // Users & Privileges
+    Route::get('/users', [ApiController::class, 'users'])->name('users');
+
+    // Global Search & Import/Export
+    Route::get('/search', [ApiController::class, 'globalSearch'])->name('search');
+    Route::post('/import', [ApiController::class, 'importFile'])->name('import');
     Route::get('/export/{table}', [ApiController::class, 'exportTable'])->name('export');
 
     // Tables & Rows
@@ -40,7 +56,21 @@ if ($path !== 'db-manager') {
         'middleware' => $middleware,
         'as' => 'scry.api.alias.',
     ], function () {
+        Route::get('/databases', [ApiController::class, 'databases']);
+        Route::post('/databases', [ApiController::class, 'createDatabase']);
+        Route::delete('/databases', [ApiController::class, 'dropDatabase']);
+
         Route::get('/server/stats', [ApiController::class, 'serverStats']);
+        Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions']);
+
+        Route::get('/views', [ApiController::class, 'views']);
+        Route::get('/triggers', [ApiController::class, 'triggers']);
+        Route::get('/procedures', [ApiController::class, 'procedures']);
+
+        Route::get('/users', [ApiController::class, 'users']);
+
+        Route::get('/search', [ApiController::class, 'globalSearch']);
+        Route::post('/import', [ApiController::class, 'importFile']);
         Route::get('/export/{table}', [ApiController::class, 'exportTable']);
 
         Route::get('/tables', [ApiController::class, 'tables']);

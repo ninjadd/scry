@@ -2,8 +2,6 @@
 
 namespace Scry\Inspectors;
 
-use Illuminate\Support\Facades\DB;
-
 class PostgresInspector extends AbstractInspector
 {
     /**
@@ -39,7 +37,6 @@ class PostgresInspector extends AbstractInspector
 
     /**
      * Get column schema definitions for a specific PostgreSQL table.
-     * Supports jsonb, uuid, timestamptz, array types, default values, primary keys, and foreign keys.
      */
     public function getTableSchema(string $table): array
     {
@@ -166,7 +163,7 @@ class PostgresInspector extends AbstractInspector
     }
 
     /**
-     * Get PostgreSQL server stats (storage size, connection metrics from pg_stat_activity).
+     * Get PostgreSQL server stats.
      */
     public function getServerStats(): array
     {
@@ -205,5 +202,57 @@ class PostgresInspector extends AbstractInspector
             'active_connections' => $activeConnections,
             'idle_connections' => $idleConnections,
         ];
+    }
+
+    public function getDatabases(): array
+    {
+        $rows = $this->connection->select("SELECT datname FROM pg_database WHERE datistemplate = false;");
+        return array_map(fn($r) => $r->datname, $rows);
+    }
+
+    public function getViews(): array
+    {
+        $rows = $this->connection->select("
+            SELECT table_name AS name 
+            FROM information_schema.views 
+            WHERE table_schema NOT IN ('pg_catalog', 'information_schema');
+        ");
+        return array_map(fn($r) => ['name' => $r->name], $rows);
+    }
+
+    public function getTriggers(): array
+    {
+        $rows = $this->connection->select("
+            SELECT 
+                trigger_name AS name, 
+                event_manipulation AS event, 
+                event_object_table AS table_name, 
+                action_timing AS timing 
+            FROM information_schema.triggers 
+            WHERE trigger_schema NOT IN ('pg_catalog', 'information_schema');
+        ");
+        return array_map(fn($r) => [
+            'name' => $r->name,
+            'event' => $r->event,
+            'table_name' => $r->table_name,
+            'timing' => $r->timing,
+        ], $rows);
+    }
+
+    public function getProcedures(): array
+    {
+        $rows = $this->connection->select("
+            SELECT 
+                routine_name AS name, 
+                routine_type AS type, 
+                data_type AS return_type 
+            FROM information_schema.routines 
+            WHERE routine_schema NOT IN ('pg_catalog', 'information_schema');
+        ");
+        return array_map(fn($r) => [
+            'name' => $r->name,
+            'type' => $r->type,
+            'return_type' => $r->return_type,
+        ], $rows);
     }
 }

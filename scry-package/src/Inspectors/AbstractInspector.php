@@ -74,6 +74,72 @@ abstract class AbstractInspector implements DatabaseInspector
         return $query->delete() > 0;
     }
 
+    public function getDatabases(): array
+    {
+        return [$this->connection->getDatabaseName()];
+    }
+
+    public function createDatabase(string $name, ?string $charset = null, ?string $collation = null): bool
+    {
+        $sql = "CREATE DATABASE " . $this->wrapIdentifier($name);
+        return $this->connection->statement($sql);
+    }
+
+    public function dropDatabase(string $name): bool
+    {
+        $sql = "DROP DATABASE " . $this->wrapIdentifier($name);
+        return $this->connection->statement($sql);
+    }
+
+    public function dropTable(string $table): bool
+    {
+        $sql = "DROP TABLE IF EXISTS " . $this->wrapIdentifier($table);
+        return $this->connection->statement($sql);
+    }
+
+    public function renameTable(string $table, string $newName): bool
+    {
+        $sql = "ALTER TABLE " . $this->wrapIdentifier($table) . " RENAME TO " . $this->wrapIdentifier($newName);
+        return $this->connection->statement($sql);
+    }
+
+    public function copyTable(string $sourceTable, string $targetTable, bool $copyData = true): bool
+    {
+        $source = $this->wrapIdentifier($sourceTable);
+        $target = $this->wrapIdentifier($targetTable);
+
+        $this->connection->statement("CREATE TABLE {$target} (LIKE {$source} INCLUDING ALL)");
+        if ($copyData) {
+            $this->connection->statement("INSERT INTO {$target} SELECT * FROM {$source}");
+        }
+        return true;
+    }
+
+    public function getViews(): array
+    {
+        return [];
+    }
+
+    public function getTriggers(): array
+    {
+        return [];
+    }
+
+    public function getProcedures(): array
+    {
+        return [];
+    }
+
+    public function hasUserManagementPrivileges(): bool
+    {
+        return false;
+    }
+
+    public function getUsers(): array
+    {
+        return [];
+    }
+
     public function executeQuery(string $query): array
     {
         $startTime = microtime(true);
@@ -85,5 +151,10 @@ abstract class AbstractInspector implements DatabaseInspector
             'row_count' => count($results),
             'data' => $results,
         ];
+    }
+
+    protected function wrapIdentifier(string $name): string
+    {
+        return '"' . str_replace('"', '""', $name) . '"';
     }
 }

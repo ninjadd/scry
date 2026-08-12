@@ -2,7 +2,7 @@
   <div :class="['flex h-screen font-sans scry-bg-app scry-text-main transition-colors duration-200', isDark ? 'theme-dark' : 'theme-light']">
     <!-- Sidebar -->
     <aside class="w-64 border-r scry-border scry-bg-sidebar flex flex-col justify-between select-none">
-      <div>
+      <div class="overflow-y-auto flex-1">
         <!-- Logo & Brand -->
         <div class="p-4 border-b scry-border flex items-center justify-between">
           <div class="flex items-center space-x-2.5">
@@ -33,39 +33,106 @@
         </div>
 
         <!-- Navigation Links -->
-        <nav class="p-3 space-y-1">
-          <router-link
-            to="/"
-            class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
-            :class="$route.name === 'dashboard' || $route.name === 'dashboard-alt' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
-          >
-            <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-            </svg>
-            Dashboard
-          </router-link>
+        <nav class="p-3 space-y-4">
+          <!-- Overview Section -->
+          <div>
+            <span class="px-3 text-[10px] font-bold uppercase tracking-wider scry-text-subtle">Overview</span>
+            <div class="mt-1 space-y-0.5">
+              <router-link
+                to="/"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'dashboard' || $route.name === 'dashboard-alt' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard
+              </router-link>
+              <router-link
+                to="/tables"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'tables' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                Tables Browser
+              </router-link>
+            </div>
+          </div>
 
-          <router-link
-            to="/tables"
-            class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
-            :class="$route.name === 'tables' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
-          >
-            <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-            </svg>
-            Tables Browser
-          </router-link>
+          <!-- Visual Tools Section -->
+          <div>
+            <span class="px-3 text-[10px] font-bold uppercase tracking-wider scry-text-subtle">Visual Tools</span>
+            <div class="mt-1 space-y-0.5">
+              <router-link
+                to="/qbe"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'qbe' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V4zM4 7a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V7zM18 7a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V7z"/></svg>
+                QBE Query Builder
+              </router-link>
+              <router-link
+                to="/erd"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'erd' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+                ERD Visualizer
+              </router-link>
+            </div>
+          </div>
 
-          <router-link
-            to="/query"
-            class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition-colors"
-            :class="$route.name === 'query' || $route.name === 'console' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
-          >
-            <svg class="w-4 h-4 mr-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            SQL Runner
-          </router-link>
+          <!-- Queries & Search Section -->
+          <div>
+            <span class="px-3 text-[10px] font-bold uppercase tracking-wider scry-text-subtle">Queries & Search</span>
+            <div class="mt-1 space-y-0.5">
+              <router-link
+                to="/query"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'query' || $route.name === 'console' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                SQL Console
+              </router-link>
+              <router-link
+                to="/search"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'search' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                Global Search
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Maintenance & Tools Section -->
+          <div>
+            <span class="px-3 text-[10px] font-bold uppercase tracking-wider scry-text-subtle">Maintenance & Tools</span>
+            <div class="mt-1 space-y-0.5">
+              <router-link
+                to="/tuning"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'tuning' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Tuning Advisor
+              </router-link>
+              <router-link
+                to="/users"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'users' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 435v-1a4 4 0 00-4-4H5a4 4 0 00-4 4v1fM15 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                User Privileges
+              </router-link>
+              <router-link
+                to="/import-export"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                :class="$route.name === 'import-export' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                Import / Export
+              </router-link>
+            </div>
+          </div>
         </nav>
       </div>
 

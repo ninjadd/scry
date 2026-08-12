@@ -89,6 +89,93 @@ interface DatabaseInspector
     public function getServerStats(): array;
 
     /**
+     * Get list of databases on the connected server instance.
+     *
+     * @return array
+     */
+    public function getDatabases(): array;
+
+    /**
+     * Create a new database.
+     *
+     * @param string $name
+     * @param string|null $charset
+     * @param string|null $collation
+     * @return bool
+     */
+    public function createDatabase(string $name, ?string $charset = null, ?string $collation = null): bool;
+
+    /**
+     * Drop a database.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function dropDatabase(string $name): bool;
+
+    /**
+     * Drop a table.
+     *
+     * @param string $table
+     * @return bool
+     */
+    public function dropTable(string $table): bool;
+
+    /**
+     * Rename a table.
+     *
+     * @param string $table
+     * @param string $newName
+     * @return bool
+     */
+    public function renameTable(string $table, string $newName): bool;
+
+    /**
+     * Copy a table structure and optionally its data.
+     *
+     * @param string $sourceTable
+     * @param string $targetTable
+     * @param bool $copyData
+     * @return bool
+     */
+    public function copyTable(string $sourceTable, string $targetTable, bool $copyData = true): bool;
+
+    /**
+     * Get database views.
+     *
+     * @return array
+     */
+    public function getViews(): array;
+
+    /**
+     * Get database triggers.
+     *
+     * @return array
+     */
+    public function getTriggers(): array;
+
+    /**
+     * Get database stored procedures and functions.
+     *
+     * @return array
+     */
+    public function getProcedures(): array;
+
+    /**
+     * Check if active connection user holds elevated user management privileges.
+     *
+     * @return bool
+     */
+    public function hasUserManagementPrivileges(): bool;
+
+    /**
+     * Get database users and their granted privileges (if permitted).
+     *
+     * @return array
+     */
+    public function getUsers(): array;
+
+    /**
      * Execute a raw SQL query against the connection.
      *
      * @param string $query
