@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: scry_workbench_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/var/www/html
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=scry_test
+      - DB_USERNAME=scry
+      - DB_PASSWORD=secret
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=scry_test
+      - MYSQL_USERNAME=scry
+      - MYSQL_PASSWORD=secret
+    depends_on:
+      - postgres
+      - mysql
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: scry_postgres
+    environment:
+      POSTGRES_DB: scry_test
+      POSTGRES_USER: scry
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mysql:
+    image: mysql:8.0
+    container_name: scry_mysql
+    environment:
+      MYSQL_DATABASE: scry_test
+      MYSQL_USER: scry
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+volumes:
+  pgdata:
+  mysqldata:
