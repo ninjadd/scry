@@ -14,45 +14,55 @@ services:
       - APP_ENV=local
       - APP_DEBUG=true
       - DB_CONNECTION=pgsql
-      - DB_HOST=postgres
+      - DB_HOST=pgsql
       - DB_PORT=5432
-      - DB_DATABASE=scry_test
-      - DB_USERNAME=scry
-      - DB_PASSWORD=secret
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=scry_test
-      - MYSQL_USERNAME=scry
-      - MYSQL_PASSWORD=secret
+      - DB_DATABASE=scry_pg_db
+      - DB_USERNAME=scry_user
+      - DB_PASSWORD=secret_password
+      - DB_MYSQL_HOST=mysql
+      - DB_MYSQL_PORT=3306
+      - DB_MYSQL_DATABASE=scry_my_db
+      - DB_MYSQL_USERNAME=scry_user
+      - DB_MYSQL_PASSWORD=secret_password
     depends_on:
-      - postgres
+      - pgsql
       - mysql
+    networks:
+      - scry_network
 
-  postgres:
-    image: postgres:16-alpine
+  pgsql:
+    image: postgres:16
     container_name: scry_postgres
-    environment:
-      POSTGRES_DB: scry_test
-      POSTGRES_USER: scry
-      POSTGRES_PASSWORD: secret
     ports:
       - "5432:5432"
+    environment:
+      POSTGRES_USER: scry_user
+      POSTGRES_PASSWORD: secret_password
+      POSTGRES_DB: scry_pg_db
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - scry_pg_data:/var/lib/postgresql/data
+    networks:
+      - scry_network
 
   mysql:
     image: mysql:8.0
     container_name: scry_mysql
     environment:
-      MYSQL_DATABASE: scry_test
-      MYSQL_USER: scry
-      MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_USER: scry_user
+      MYSQL_PASSWORD: secret_password
+      MYSQL_DATABASE: scry_my_db
+      MYSQL_ROOT_PASSWORD: secret_root_password
     ports:
       - "3306:3306"
     volumes:
-      - mysqldata:/var/lib/mysql
+      - scry_my_data:/var/lib/mysql
+    networks:
+      - scry_network
 
 volumes:
-  pgdata:
-  mysqldata:
+  scry_pg_data:
+  scry_my_data:
+
+networks:
+  scry_network:
+    driver: bridge

@@ -6,3 +6,4 @@ scry-package/node_modules
 scry-package/vendor
 dummy-app/vendor
 dummy-app/public/vendor
+dummy-app/.env
