@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'public',
+    outDir: 'resources/dist',
     emptyOutDir: true,
     rollupOptions: {
       input: 'resources/js/app.js',

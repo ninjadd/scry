@@ -61,7 +61,7 @@ class DatabaseManagerServiceProvider extends ServiceProvider
             ], 'database-manager-config');
 
             $this->publishes([
-                __DIR__ . '/../public' => public_path('vendor/database-manager'),
+                __DIR__ . '/../resources/dist' => public_path('vendor/database-manager'),
             ], 'database-manager-assets');
         }
     }
