@@ -1,9 +1,9 @@
 <template>
-  <div class="flex-1 p-6 overflow-y-auto">
+  <div class="flex-1 p-6 overflow-y-auto scry-bg-app">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-2xl font-bold text-slate-100">Database Tables</h2>
-        <p class="text-sm text-slate-400">Inspecting database structure and storage statistics for connection <span class="font-mono text-indigo-400 font-bold">[{{ currentConnection }}]</span>.</p>
+        <h2 class="text-2xl font-bold scry-text-main">Database Tables</h2>
+        <p class="text-sm scry-text-muted">Inspecting database structure and storage statistics for connection <span class="font-mono scry-accent-text font-bold">[{{ currentConnection }}]</span>.</p>
       </div>
 
       <div class="relative w-64">
@@ -11,14 +11,14 @@
           v-model="search"
           type="text"
           placeholder="Filter tables..."
-          class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          class="w-full scry-bg-input border scry-border rounded-lg px-3 py-2 text-sm scry-text-main placeholder:scry-text-subtle focus:outline-none focus:border-pink-600 shadow-sm"
         />
       </div>
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-20 text-slate-500">
-      <svg class="animate-spin h-6 w-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24">
+    <div v-if="loading" class="flex items-center justify-center py-20 scry-text-muted">
+      <svg class="animate-spin h-6 w-6 mr-2 text-pink-600" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
       </svg>
@@ -30,31 +30,31 @@
       <div
         v-for="table in filteredTables"
         :key="table.name"
-        class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-5 hover:border-indigo-500/50 transition-all group"
+        class="scry-bg-card border scry-border rounded-xl p-5 hover:border-pink-600/60 transition-all shadow-sm group"
       >
         <div class="flex items-start justify-between mb-3">
-          <h3 class="font-mono text-base font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors">
+          <h3 class="font-mono text-base font-semibold scry-text-main group-hover:scry-accent-text transition-colors">
             {{ table.name }}
           </h3>
-          <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+          <span class="text-xs font-mono px-2 py-0.5 rounded scry-badge-glaucous font-semibold">
             {{ table.size }}
           </span>
         </div>
 
-        <div class="text-xs text-slate-400 mb-4">
-          Estimated rows: <span class="font-mono text-slate-200">{{ table.rows.toLocaleString() }}</span>
+        <div class="text-xs scry-text-muted mb-4">
+          Estimated rows: <span class="font-mono scry-text-main font-semibold">{{ table.rows.toLocaleString() }}</span>
         </div>
 
-        <div class="flex items-center space-x-2 pt-3 border-t border-slate-800/60">
+        <div class="flex items-center space-x-2 pt-3 border-t scry-border-subtle">
           <router-link
             :to="{ name: 'data', params: { table: table.name }, query: { connection: currentConnection } }"
-            class="flex-1 text-center py-1.5 text-xs font-medium rounded-md bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
+            class="flex-1 text-center py-1.5 text-xs font-semibold rounded-md scry-accent-bg transition-colors shadow-sm"
           >
             View Data
           </router-link>
           <router-link
             :to="{ name: 'schema', params: { table: table.name }, query: { connection: currentConnection } }"
-            class="flex-1 text-center py-1.5 text-xs font-medium rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+            class="flex-1 text-center py-1.5 text-xs font-semibold rounded-md scry-badge-pale-blue transition-colors"
           >
             View Schema
           </router-link>
@@ -67,7 +67,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 
-const props = defineProps({ connection: String });
+const props = defineProps({ connection: String, isDark: Boolean });
 const emit = defineEmits(['update-driver', 'tables-loaded', 'connections-loaded']);
 const baseApiUrl = inject('baseApiUrl');
 
