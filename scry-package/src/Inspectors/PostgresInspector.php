@@ -4,6 +4,9 @@ namespace Scry\Inspectors;
 
 class PostgresInspector extends AbstractInspector
 {
+    /**
+     * Get all base tables in the public schema with relation size and row count estimates.
+     */
     public function getTables(): array
     {
         $query = "
@@ -32,8 +35,21 @@ class PostgresInspector extends AbstractInspector
         }, $rows);
     }
 
+    /**
+     * Get detailed column details (name, data_type, nullable, default_value, is_primary, is_foreign_key).
+     */
     public function getTableSchema(string $table): array
     {
+        $indexes = $this->getTableIndexes($table);
+        $foreignKeys = $this->getTableForeignKeys($table);
+
+        $primaryColumns = array_column(
+            array_filter($indexes, fn($idx) => !empty($idx['is_primary'])),
+            'column_name'
+        );
+
+        $fkColumns = array_column($foreignKeys, 'column_name');
+
         $columnsQuery = "
             SELECT 
                 c.column_name AS name,
@@ -49,16 +65,31 @@ class PostgresInspector extends AbstractInspector
         ";
         $columnsRaw = $this->connection->select($columnsQuery, [$table]);
 
-        $columns = array_map(function ($col) {
+        $columns = array_map(function ($col) use ($primaryColumns, $fkColumns) {
             return [
                 'name' => $col->name,
-                'type' => $col->format ?? $col->type,
+                'data_type' => $col->format ?? $col->type,
                 'full_type' => $col->max_length ? "{$col->type}({$col->max_length})" : $col->type,
                 'nullable' => $col->nullable === 'YES',
                 'default_value' => $col->default_value,
+                'is_primary' => in_array($col->name, $primaryColumns),
+                'is_foreign_key' => in_array($col->name, $fkColumns),
             ];
         }, $columnsRaw);
 
+        return [
+            'table' => $table,
+            'columns' => $columns,
+            'indexes' => $indexes,
+            'foreign_keys' => $foreignKeys,
+        ];
+    }
+
+    /**
+     * Get index information for a specific table (index_name, column_name, is_unique, is_primary).
+     */
+    public function getTableIndexes(string $table): array
+    {
         $indexesQuery = "
             SELECT
                 i.relname AS index_name,
@@ -76,7 +107,7 @@ class PostgresInspector extends AbstractInspector
         ";
         $indexesRaw = $this->connection->select($indexesQuery, [$table]);
 
-        $indexes = array_map(function ($idx) {
+        return array_map(function ($idx) {
             return [
                 'index_name' => $idx->index_name,
                 'column_name' => $idx->column_name,
@@ -84,7 +115,13 @@ class PostgresInspector extends AbstractInspector
                 'is_primary' => (bool) $idx->is_primary,
             ];
         }, $indexesRaw);
+    }
 
+    /**
+     * Get foreign key relationship definitions for a specific table.
+     */
+    public function getTableForeignKeys(string $table): array
+    {
         $foreignKeysQuery = "
             SELECT
                 con.conname AS constraint_name,
@@ -95,13 +132,13 @@ class PostgresInspector extends AbstractInspector
             JOIN pg_catalog.pg_class tbl ON tbl.oid = con.conrelid
             JOIN pg_catalog.pg_class cl ON cl.oid = con.confrelid
             JOIN pg_catalog.pg_attribute att ON att.attrelid = con.confrelid AND att.attnum = ANY(con.confkey)
-            JOIN pg_catalog.pg_attribute att2 ON att2.attrelid = con.conrelid AND att2.attnum = ANY(con.conkey)
+            JOIN pg_catalog.pg_attribute att2 ON att2.attrelid = con.conrelid AND att2.attnum = ANY(con.confkey)
             WHERE con.contype = 'f'
               AND tbl.relname = ?;
         ";
         $foreignKeysRaw = $this->connection->select($foreignKeysQuery, [$table]);
 
-        $foreignKeys = array_map(function ($fk) {
+        return array_map(function ($fk) {
             return [
                 'constraint_name' => $fk->constraint_name,
                 'column_name' => $fk->column_name,
@@ -109,12 +146,5 @@ class PostgresInspector extends AbstractInspector
                 'foreign_column_name' => $fk->foreign_column_name,
             ];
         }, $foreignKeysRaw);
-
-        return [
-            'table' => $table,
-            'columns' => $columns,
-            'indexes' => $indexes,
-            'foreign_keys' => $foreignKeys,
-        ];
     }
 }

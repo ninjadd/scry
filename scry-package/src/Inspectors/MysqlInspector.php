@@ -31,6 +31,16 @@ class MysqlInspector extends AbstractInspector
     {
         $dbName = $this->connection->getDatabaseName();
 
+        $indexes = $this->getTableIndexes($table);
+        $foreignKeys = $this->getTableForeignKeys($table);
+
+        $primaryColumns = array_column(
+            array_filter($indexes, fn($idx) => !empty($idx['is_primary'])),
+            'column_name'
+        );
+
+        $fkColumns = array_column($foreignKeys, 'column_name');
+
         $columnsQuery = "
             SELECT 
                 COLUMN_NAME AS name,
@@ -42,7 +52,31 @@ class MysqlInspector extends AbstractInspector
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION ASC;
         ";
-        $columns = $this->connection->select($columnsQuery, [$dbName, $table]);
+        $columnsRaw = $this->connection->select($columnsQuery, [$dbName, $table]);
+
+        $columns = array_map(function ($col) use ($primaryColumns, $fkColumns) {
+            return [
+                'name' => $col->name,
+                'data_type' => $col->type,
+                'nullable' => $col->nullable === 'YES',
+                'default_value' => $col->default_value,
+                'is_primary' => in_array($col->name, $primaryColumns),
+                'is_foreign_key' => in_array($col->name, $fkColumns),
+                'extra' => $col->extra,
+            ];
+        }, $columnsRaw);
+
+        return [
+            'table' => $table,
+            'columns' => $columns,
+            'indexes' => $indexes,
+            'foreign_keys' => $foreignKeys,
+        ];
+    }
+
+    public function getTableIndexes(string $table): array
+    {
+        $dbName = $this->connection->getDatabaseName();
 
         $indexesQuery = "
             SELECT 
@@ -53,12 +87,40 @@ class MysqlInspector extends AbstractInspector
             FROM information_schema.STATISTICS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;
         ";
-        $indexes = $this->connection->select($indexesQuery, [$dbName, $table]);
+        $indexesRaw = $this->connection->select($indexesQuery, [$dbName, $table]);
 
-        return [
-            'table' => $table,
-            'columns' => $columns,
-            'indexes' => $indexes,
-        ];
+        return array_map(function ($idx) {
+            return [
+                'index_name' => $idx->index_name,
+                'column_name' => $idx->column_name,
+                'is_unique' => (int) $idx->non_unique === 0,
+                'is_primary' => $idx->index_name === 'PRIMARY',
+            ];
+        }, $indexesRaw);
+    }
+
+    public function getTableForeignKeys(string $table): array
+    {
+        $dbName = $this->connection->getDatabaseName();
+
+        $foreignKeysQuery = "
+            SELECT 
+                CONSTRAINT_NAME AS constraint_name,
+                COLUMN_NAME AS column_name,
+                REFERENCED_TABLE_NAME AS foreign_table_name,
+                REFERENCED_COLUMN_NAME AS foreign_column_name
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL;
+        ";
+        $foreignKeysRaw = $this->connection->select($foreignKeysQuery, [$dbName, $table]);
+
+        return array_map(function ($fk) {
+            return [
+                'constraint_name' => $fk->constraint_name,
+                'column_name' => $fk->column_name,
+                'foreign_table_name' => $fk->foreign_table_name,
+                'foreign_column_name' => $fk->foreign_column_name,
+            ];
+        }, $foreignKeysRaw);
     }
 }
