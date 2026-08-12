@@ -7,13 +7,15 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Scry\DatabaseExplorerManager;
 use Scry\Exceptions\UnsupportedDriverException;
+use Scry\Services\SqlRunner;
 use PDOException;
 use Throwable;
 
 class ApiController extends Controller
 {
     public function __construct(
-        protected DatabaseExplorerManager $manager
+        protected DatabaseExplorerManager $manager,
+        protected SqlRunner $sqlRunner
     ) {}
 
     /**
@@ -184,10 +186,10 @@ class ApiController extends Controller
     }
 
     /**
-     * POST /scry/api/query
-     * Executes raw SQL query and returns formatted result set.
+     * POST /scry/api/sql/execute
+     * Executes raw SQL query via SqlRunner service and returns type-detected results.
      */
-    public function query(Request $request): JsonResponse
+    public function executeSql(Request $request): JsonResponse
     {
         $request->validate([
             'query' => 'required|string',
@@ -198,14 +200,20 @@ class ApiController extends Controller
         $sql = $request->input('query');
 
         try {
-            $inspector = $this->manager->forConnection($connection);
-            return response()->json($inspector->executeQuery($sql));
+            $result = $this->sqlRunner->execute($sql, $connection);
+            $status = isset($result['error']) ? 422 : 200;
+
+            return response()->json($result, $status);
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
-        } catch (Throwable $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-            ], 422);
         }
+    }
+
+    /**
+     * POST /scry/api/query (Alias for executeSql)
+     */
+    public function query(Request $request): JsonResponse
+    {
+        return $this->executeSql($request);
     }
 }

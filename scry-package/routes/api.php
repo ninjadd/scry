@@ -22,6 +22,8 @@ Route::group([
     Route::put('/tables/{table}/rows', [ApiController::class, 'updateRow'])->name('rows.update');
     Route::delete('/tables/{table}/rows', [ApiController::class, 'deleteRow'])->name('rows.delete');
 
+    // SQL Execution Routes
+    Route::post('/sql/execute', [ApiController::class, 'executeSql'])->name('sql.execute');
     Route::post('/query', [ApiController::class, 'query'])->name('query');
 });
 
@@ -40,6 +42,7 @@ if ($path !== 'db-manager') {
         Route::put('/tables/{table}/rows', [ApiController::class, 'updateRow']);
         Route::delete('/tables/{table}/rows', [ApiController::class, 'deleteRow']);
 
+        Route::post('/sql/execute', [ApiController::class, 'executeSql']);
         Route::post('/query', [ApiController::class, 'query']);
     });
 }
