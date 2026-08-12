@@ -4,6 +4,9 @@ namespace Scry\Inspectors;
 
 class MysqlInspector extends AbstractInspector
 {
+    /**
+     * Get all base tables in the current MySQL database with relation sizes and row estimates.
+     */
     public function getTables(): array
     {
         $dbName = $this->connection->getDatabaseName();
@@ -11,6 +14,7 @@ class MysqlInspector extends AbstractInspector
         $query = "
             SELECT 
                 TABLE_NAME AS name,
+                (DATA_LENGTH + INDEX_LENGTH) AS size_bytes,
                 ROUND(((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024), 2) AS size_mb,
                 TABLE_ROWS AS estimated_rows
             FROM information_schema.TABLES
@@ -19,14 +23,26 @@ class MysqlInspector extends AbstractInspector
         ";
 
         return array_map(function ($row) {
+            $sizeBytes = (int) ($row->size_bytes ?? 0);
+            $sizeFormatted = match (true) {
+                $sizeBytes >= 1048576 => number_format($sizeBytes / 1048576, 2) . ' MB',
+                $sizeBytes >= 1024 => number_format($sizeBytes / 1024, 2) . ' kB',
+                default => $sizeBytes . ' B',
+            };
+
             return [
                 'name' => $row->name,
-                'size' => ($row->size_mb ?? 0) . ' MB',
-                'rows' => (int) $row->estimated_rows,
+                'size' => $sizeFormatted,
+                'size_bytes' => $sizeBytes,
+                'rows' => max(0, (int) $row->estimated_rows),
             ];
         }, $this->connection->select($query, [$dbName]));
     }
 
+    /**
+     * Get column schema definitions for a specific MySQL table.
+     * Output structure is normalized to match PostgresInspector.
+     */
     public function getTableSchema(string $table): array
     {
         $dbName = $this->connection->getDatabaseName();
@@ -44,7 +60,8 @@ class MysqlInspector extends AbstractInspector
         $columnsQuery = "
             SELECT 
                 COLUMN_NAME AS name,
-                COLUMN_TYPE AS type,
+                DATA_TYPE AS data_type,
+                COLUMN_TYPE AS full_type,
                 IS_NULLABLE AS nullable,
                 COLUMN_DEFAULT AS default_value,
                 EXTRA AS extra
@@ -57,7 +74,8 @@ class MysqlInspector extends AbstractInspector
         $columns = array_map(function ($col) use ($primaryColumns, $fkColumns) {
             return [
                 'name' => $col->name,
-                'data_type' => $col->type,
+                'data_type' => $col->data_type,
+                'full_type' => $col->full_type,
                 'nullable' => $col->nullable === 'YES',
                 'default_value' => $col->default_value,
                 'is_primary' => in_array($col->name, $primaryColumns),
@@ -74,6 +92,9 @@ class MysqlInspector extends AbstractInspector
         ];
     }
 
+    /**
+     * Get index names, columns involved, uniqueness, and primary key status for a MySQL table.
+     */
     public function getTableIndexes(string $table): array
     {
         $dbName = $this->connection->getDatabaseName();
@@ -85,7 +106,8 @@ class MysqlInspector extends AbstractInspector
                 NON_UNIQUE AS non_unique,
                 INDEX_TYPE AS index_type
             FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+            ORDER BY INDEX_NAME ASC, SEQ_IN_INDEX ASC;
         ";
         $indexesRaw = $this->connection->select($indexesQuery, [$dbName, $table]);
 
@@ -99,6 +121,9 @@ class MysqlInspector extends AbstractInspector
         }, $indexesRaw);
     }
 
+    /**
+     * Get foreign key relationships for a MySQL table from key_column_usage.
+     */
     public function getTableForeignKeys(string $table): array
     {
         $dbName = $this->connection->getDatabaseName();
@@ -110,7 +135,8 @@ class MysqlInspector extends AbstractInspector
                 REFERENCED_TABLE_NAME AS foreign_table_name,
                 REFERENCED_COLUMN_NAME AS foreign_column_name
             FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL;
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+            ORDER BY CONSTRAINT_NAME ASC;
         ";
         $foreignKeysRaw = $this->connection->select($foreignKeysQuery, [$dbName, $table]);
 
