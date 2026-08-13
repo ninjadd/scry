@@ -183,7 +183,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
@@ -312,6 +312,22 @@ const confirmDropTable = async (tableName) => {
   }
 };
 
-onMounted(loadTables);
+const handleKeydown = (e) => {
+  if (e.key === 'Escape') {
+    showCreateModal.value = false;
+    showCopyModal.value = false;
+    showRenameModal.value = false;
+  }
+};
+
+onMounted(() => {
+  loadTables();
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
+
 watch(() => store.currentConnection, loadTables);
 </script>

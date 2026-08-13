@@ -96,23 +96,38 @@
     </div>
 
     <!-- Pagination Footer -->
-    <div v-if="meta.total" class="p-4 border-t scry-border scry-bg-header flex items-center justify-between text-xs scry-text-muted font-mono">
-      <div>
-        Showing page <span class="scry-text-main font-bold">{{ meta.page }}</span> of <span class="scry-text-main font-bold">{{ meta.last_page }}</span> ({{ meta.total.toLocaleString() }} records total)
+    <div v-if="meta.total" class="p-4 border-t scry-border scry-bg-header flex flex-col sm:flex-row items-center justify-between gap-3 text-xs scry-text-muted font-mono">
+      <div class="flex items-center space-x-3">
+        <div>
+          Showing page <span class="scry-text-main font-bold">{{ meta.page }}</span> of <span class="scry-text-main font-bold">{{ meta.last_page }}</span> ({{ meta.total.toLocaleString() }} records total)
+        </div>
+        <div class="flex items-center space-x-1.5 border-l scry-border pl-3">
+          <span class="text-[11px] scry-text-subtle">Per page:</span>
+          <select
+            v-model="perPage"
+            @change="handlePerPageChange"
+            class="scry-bg-input border scry-border rounded px-2 py-1 text-xs scry-text-main focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+          >
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+        </div>
       </div>
 
       <div class="flex space-x-2">
         <button
           :disabled="meta.page <= 1"
           @click="changePage(meta.page - 1)"
-          class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer"
+          class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500/50"
         >
           Previous
         </button>
         <button
           :disabled="meta.page >= meta.last_page"
           @click="changePage(meta.page + 1)"
-          class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer"
+          class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500/50"
         >
           Next
         </button>
@@ -132,6 +147,7 @@ const rows = ref([]);
 const meta = ref({});
 const loading = ref(true);
 const page = ref(1);
+const perPage = ref(25);
 const sortBy = ref(null);
 const sortDir = ref('asc');
 
@@ -145,7 +161,7 @@ const fetchData = async () => {
   try {
     const params = new URLSearchParams({
       page: page.value,
-      per_page: 25,
+      per_page: perPage.value,
       ...(sortBy.value && { sort_by: sortBy.value, sort_dir: sortDir.value }),
     });
 
@@ -160,6 +176,11 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const handlePerPageChange = () => {
+  page.value = 1;
+  fetchData();
 };
 
 const changePage = (newPage) => {

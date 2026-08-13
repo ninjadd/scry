@@ -28,18 +28,41 @@
       </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="py-20 text-center scry-text-muted">
-      Building entity-relationship diagram...
+    <!-- Search Filter & Summary Bar -->
+    <div v-if="!loading" class="mb-4 flex items-center justify-between gap-3">
+      <div class="flex items-center space-x-2">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Filter ERD tables..."
+          class="scry-bg-input border scry-border rounded-lg px-3 py-1.5 text-xs scry-text-main focus:outline-none focus:ring-2 focus:ring-pink-500/50 font-mono shadow-sm"
+        />
+        <span class="text-xs font-mono scry-text-muted">
+          Showing <strong class="scry-accent-text">{{ filteredNodes.length }}</strong> of {{ schemaNodes.length }} entities
+        </span>
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs font-mono">
+        <span class="px-2.5 py-1 rounded scry-badge-glaucous font-bold">
+          {{ totalForeignKeys }} FK Constraints
+        </span>
+      </div>
     </div>
 
     <!-- ERD Canvas View -->
+    <div v-if="loading" class="py-20 text-center scry-text-muted font-mono text-xs">
+      Building entity-relationship diagram...
+    </div>
+
     <div v-else class="flex-1 overflow-auto scry-bg-card border scry-border rounded-xl p-6 shadow-sm flex flex-col">
-      <div id="erd-container" ref="erdContainer" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-if="filteredNodes.length === 0" class="py-16 text-center text-xs scry-text-muted font-mono">
+        No entities matching filter "{{ searchQuery }}".
+      </div>
+      <div v-else id="erd-container" ref="erdContainer" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          v-for="t in schemaNodes"
+          v-for="t in filteredNodes"
           :key="t.table"
-          class="border scry-border rounded-xl overflow-hidden shadow-sm scry-bg-card flex flex-col"
+          class="border scry-border rounded-xl overflow-hidden shadow-sm scry-bg-card flex flex-col transition-all hover:border-pink-500/50"
         >
           <div class="px-4 py-3 scry-bg-header border-b scry-border flex items-center justify-between">
             <h3 class="font-mono font-bold text-sm scry-accent-text">{{ t.table }}</h3>
@@ -59,7 +82,7 @@
             </div>
           </div>
 
-          <div v-if="t.foreign_keys.length > 0" class="px-3 py-2 border-t scry-border-subtle text-[11px] scry-text-muted bg-slate-500/5 font-mono">
+          <div v-if="t.foreign_keys && t.foreign_keys.length > 0" class="px-3 py-2 border-t scry-border-subtle text-[11px] scry-text-muted bg-slate-500/5 font-mono">
             <div v-for="fk in t.foreign_keys" :key="fk.constraint_name">
               &rarr; {{ fk.column_name }} &bull; {{ fk.foreign_table_name }}({{ fk.foreign_column_name }})
             </div>
@@ -71,13 +94,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
 const loading = ref(true);
 const schemaNodes = ref([]);
 const erdContainer = ref(null);
+const searchQuery = ref('');
+
+const filteredNodes = computed(() => {
+  if (!searchQuery.value.trim()) return schemaNodes.value;
+  const q = searchQuery.value.toLowerCase();
+  return schemaNodes.value.filter(n =>
+    n.table.toLowerCase().includes(q) ||
+    n.columns.some(c => c.name.toLowerCase().includes(q))
+  );
+});
+
+const totalForeignKeys = computed(() => {
+  return schemaNodes.value.reduce((acc, node) => acc + (node.foreign_keys?.length || 0), 0);
+});
 
 const loadFullSchema = async () => {
   loading.value = true;

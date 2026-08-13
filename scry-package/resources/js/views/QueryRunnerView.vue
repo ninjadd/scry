@@ -40,29 +40,33 @@
 
           <textarea
             v-model="query"
+            @keydown.cmd.enter.prevent="runQuery"
+            @keydown.ctrl.enter.prevent="runQuery"
             rows="5"
-            placeholder="Type raw SQL query here (e.g. SELECT * FROM users;)..."
-            class="w-full scry-bg-input border scry-border rounded-lg p-3 text-xs font-mono scry-accent-text focus:outline-none focus:border-pink-600 shadow-inner"
+            placeholder="Type raw SQL query here (e.g. SELECT * FROM users;)... Press ⌘+Enter to execute."
+            class="w-full scry-bg-input border scry-border rounded-lg p-3 text-xs font-mono scry-accent-text focus:outline-none focus:ring-2 focus:ring-pink-500/50 shadow-inner"
           ></textarea>
 
           <div class="mt-3 flex items-center justify-between">
-            <div class="text-xs font-mono scry-text-muted">
-              <span v-if="executionTimeMs !== null">Execution time: <strong class="scry-accent-text">{{ executionTimeMs }} ms</strong></span>
+            <div class="text-xs font-mono scry-text-muted flex items-center space-x-2">
+              <span v-if="executionTimeMs !== null" class="px-2 py-0.5 rounded scry-badge-glaucous font-bold">⚡ {{ executionTimeMs }} ms</span>
+              <span class="text-[11px] scry-text-subtle">Press <kbd class="px-1 py-0.5 bg-slate-200 dark:bg-slate-700 rounded font-mono">⌘ + Enter</kbd> to run</span>
             </div>
 
             <div class="flex space-x-2">
               <button
                 @click="query = ''"
-                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
               >
                 Clear
               </button>
               <button
                 @click="runQuery"
                 :disabled="executing || !query.trim()"
-                class="px-5 py-1.5 text-xs font-semibold rounded-lg scry-accent-bg disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
+                class="px-5 py-1.5 text-xs font-semibold rounded-lg scry-accent-bg disabled:opacity-50 transition-colors cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 flex items-center space-x-1"
               >
-                {{ executing ? 'Executing...' : 'Run Query' }}
+                <span>{{ executing ? 'Executing...' : 'Run Query' }}</span>
+                <span class="text-[10px] opacity-75 font-mono">(⌘↵)</span>
               </button>
             </div>
           </div>
@@ -79,6 +83,15 @@
           </div>
 
           <div v-else-if="results.length > 0" class="overflow-x-auto">
+            <div class="mb-3 flex items-center justify-between">
+              <span class="text-xs font-mono scry-text-muted font-bold">{{ results.length }} record(s) returned</span>
+              <button
+                @click="copyResultsJSON"
+                class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-pale-blue hover:opacity-80 transition-opacity cursor-pointer font-mono"
+              >
+                Copy JSON Output
+              </button>
+            </div>
             <table class="w-full text-left text-xs font-mono">
               <thead class="scry-bg-header border-b scry-border scry-text-muted uppercase tracking-wider">
                 <tr>
@@ -188,6 +201,11 @@ const runQuery = async () => {
   } finally {
     executing.value = false;
   }
+};
+
+const copyResultsJSON = () => {
+  navigator.clipboard.writeText(JSON.stringify(results.value, null, 2));
+  alert('Query results JSON copied to clipboard!');
 };
 
 const saveCurrentBookmark = () => {
