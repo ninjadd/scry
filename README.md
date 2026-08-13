@@ -62,7 +62,7 @@ scry/ (Workspace Root)
 │   │   ├── Contracts/DatabaseInspector.php # Core Inspector Interface
 │   │   ├── Services/
 │   │   │   ├── SqlRunner.php             # SqlRunner Service
-│   │   │   ├── ExportService.php         # ExportService (CSV, SQL, XML, PDF, Word .doc, ODT, JSON, LaTeX)
+│   │   │   ├── ExportService.php         # ExportService (CSV, SQL, XML, JSON)
 │   │   │   ├── ImportService.php         # ImportService (Quote-aware SQL parser & CSV batch stream)
 │   │   │   ├── GlobalSearchService.php   # Database-level LIKE search across text columns
 │   │   │   └── ServerTuningAdvisor.php   # Status Variables & Process List Tuning Advisor

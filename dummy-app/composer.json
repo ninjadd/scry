@@ -4,7 +4,6 @@
     "description": "Host dummy Laravel application for scry package development",
     "require": {
         "php": "^8.2",
-        "dompdf/dompdf": "^3.0",
         "fakerphp/faker": "^1.24",
         "laravel/framework": "^10.0|^11.0",
         "scry/scry": "@dev"
