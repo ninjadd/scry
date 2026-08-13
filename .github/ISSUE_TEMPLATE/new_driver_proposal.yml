@@ -1,0 +1,51 @@
+name: New Driver Proposal
+description: Propose support or submit a blueprint for a new database driver
+title: "[Driver Proposal]: "
+labels: ["driver proposal", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposing a new database inspector driver for Scry? Use this template to outline the target database and system catalog queries needed for schema introspection.
+
+  - type: input
+    id: db_engine_name
+    attributes:
+      label: Target Database Engine & Version(s)
+      description: What database engine and version range are you proposing driver support for?
+      placeholder: "e.g., SQLite 3.x, Microsoft SQL Server 2022, ClickHouse 23.x, Oracle DB 21c"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case & Motivation
+      description: Why should Scry support this database engine? How widely is it used in the Laravel ecosystem?
+    validations:
+      required: true
+
+  - type: textarea
+    id: system_tables_introspection
+    attributes:
+      label: System Tables & Information Schema Queries
+      description: Outline the system catalog tables and introspection queries you plan to use for table listing, column definitions, index detection, foreign keys, and row counts.
+      placeholder: |
+        - Table Listing: `SELECT name FROM sqlite_master WHERE type='table';`
+        - Column Definitions: `PRAGMA table_info('table_name');`
+        - Foreign Keys: `PRAGMA foreign_key_list('table_name');`
+        - Indexes: `PRAGMA index_list('table_name');`
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pr_willingness
+    attributes:
+      label: Pull Request Plans
+      description: Are you planning to implement this driver and submit a Pull Request?
+      options:
+        - "Yes, I am currently working on a PR for this driver."
+        - "Yes, I plan to build it with community input."
+        - "No, proposing this for another community member to take on."
+    validations:
+      required: true

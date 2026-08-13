@@ -7,20 +7,26 @@
 [![Laravel Support](https://img.shields.io/badge/Laravel-10_%7C_11_%7C_12_%7C_13%2B-red.svg?style=flat-square)](https://laravel.com)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2_%7C_8.3_%7C_8.4_%7C_8.5-blue.svg?style=flat-square)](https://php.net)
 
-A modern, reactive, multi-database explorer and management suite for Laravel applications, inspired by Laravel Telescope and built with a decoupled Vue 3 SPA architecture. Out-of-the-box support for **PostgreSQL**, **MySQL**, **MariaDB**, **SQLite**, and **SQL Server**.
+---
+
+## Introduction
+
+**Scry** is a fast, reactive, Vue-powered database manager for Laravel applications. It provides dynamic schema introspection, raw SQL execution, and interactive ERD diagrams directly inside your local Laravel environment.
+
+Designed as a modern alternative to legacy tools like phpMyAdmin or heavy desktop clients, Scry runs as an embedded package inside your application. It automatically detects configured database connections, giving developers an instant, friction-free GUI to inspect tables, debug queries, and analyze database structures without leaving their browser.
 
 ---
 
-## Key Features
+## Features
 
-- **Interactive ERD Schema Visualizer**: Entity-relationship diagram visualizer powered by Mermaid.js. Includes interactive canvas **Zoom In / Zoom Out**, **Mouse Wheel Zoom**, **Canvas Panning**, **Draggable Table Cards**, and **Sticky Foreign Key Arrows** that dynamically stretch as nodes move. Export diagrams as Mermaid code, SVG, or high-DPI PNG.
-- **Smart Connection Switcher**: Probes TCP ports and SQLite files so the connection selector displays only active, reachable database connections on the dashboard and automatically falls back to live databases.
-- **Table Views & Pagination**: Complete pagination controls (`page`, `per_page`, record counts) rendered across all table data views.
-- **Query-by-Example (QBE) Builder**: Visually compose complex SQL queries with joins, WHERE filters, aggregations (`COUNT`, `SUM`, `AVG`), grouping, and sorting.
-- **Raw SQL Console**: SQL query editor with snippet library, bookmarking, execution timing, and formatted JSON output.
-- **Import & Export**: High-performance streaming exports (`CSV`, `SQL`, `XML`, `JSON`) and quote-aware transaction imports.
-- **Server Tuning & Slow Query Diagnostics**: Real-time process monitor (`PROCESSLIST`), active session killer, and database configuration health advisor.
-- **Global Database Search**: Cross-table `LIKE` search across all text columns and tables.
+- **Multi-Connection Support:** Seamlessly toggle between multiple database connections (PostgreSQL, MySQL, MariaDB, SQLite, and SQL Server) defined in your application.
+- **Vue SPA Frontend:** Snappy, single-page application built with modern reactive components, dark/light theme support, and responsive typography.
+- **Dynamic Schema Inspection:** Interactive Entity-Relationship Diagram (ERD) visualizer powered by Mermaid.js featuring canvas zooming, panning, draggable table nodes, dynamic foreign key arrows, and SVG/PNG exports.
+- **Raw SQL Console:** Powerful SQL editor with execution timing, query history, bookmarking, and formatted JSON/tabular output.
+- **Query-by-Example (QBE) Builder:** Visually compose complex SQL queries with joins, `WHERE` conditions, aggregations (`COUNT`, `SUM`, `AVG`), and custom sorting.
+- **Streaming Data Import & Export:** High-performance data exports (`CSV`, `SQL`, `XML`, `JSON`) and quote-aware SQL script imports within database transactions.
+- **Server Tuning & Process Monitor:** Live process listing (`PROCESSLIST`), active query cancellation, and automated health checks.
+- **Global Cross-Table Search:** Search across all text fields and tables simultaneously.
 
 ---
 
@@ -32,82 +38,86 @@ Install the package via Composer:
 composer require scry/scry
 ```
 
-Publish package frontend assets:
+---
+
+## Configuration
+
+Publish the pre-compiled Vue assets required for the single-page interface:
 
 ```bash
 php artisan vendor:publish --tag=scry-assets
 ```
 
-Visit the dashboard in your browser:
-`http://your-app.test/scry`
-
----
-
-## Seasons #63 Design System
-
-Scry features a custom design system built around the curated **Seasons #63** color palette and clean typography.
-
-| Color Name | Hex Code | Purpose / Application |
-| --- | --- | --- |
-| **Pomegranate Purple** | `#b91c5c` / `#e63980` | Primary brand identity, active state navigation, primary buttons. |
-| **Sulphur Yellow** | `#f8f1c8` | Light mode surface highlights, primary badges, dark mode text accents. |
-| **Glaucous Green** | `#adcebe` / `#e4f0ea` | Data type pills, row count indicators, success status badges. |
-| **Pale King's Blue 2** | `#a1d5eb` / `#e1f2fa` | Schema view buttons, foreign key indicators, secondary button highlights. |
-| **Slate Color** | `#384950` / `#1c262a` | Body typography, container background, dark mode surface container. |
-
-### Theme Modes
-- **Light Mode (Default)**: Active default preference stored in `localStorage`.
-- **Dark Mode**: Seamless dark mode using Seasons #63 dark slate styling.
-- **Toggle**: Located in the bottom-left sidebar navigation.
-
----
-
-## Testing & Development Stack
-
-### Automated Unit & Feature Tests
-```bash
-composer test
-# or
-./vendor/bin/phpunit
-```
-
-### Multi-Database Seeding & Docker Stack
-Scry includes a Docker Compose environment for testing PostgreSQL, MySQL, MariaDB, and SQL Server simultaneously:
+Optionally publish the package configuration file to `config/scry.php`:
 
 ```bash
-docker compose up -d
-php artisan scry:seed-all --fresh
+php artisan vendor:publish --tag=scry-config
+```
+
+### Environment Restrictions
+
+By default, Scry is locked down strictly to `local` and `testing` environments to prevent unauthorized access.
+
+You can configure the URI path and allowed environments via environment variables or inside `config/scry.php`:
+
+```env
+SCRY_PATH=scry
+```
+
+In `config/scry.php`:
+
+```php
+'allowed_environments' => [
+    'local',
+    'testing',
+],
 ```
 
 ---
 
-## Repository Structure
+## Usage
+
+Once installed and assets are published, open your browser and navigate to:
 
 ```
-scry/
-├── composer.json                 # Package Configuration (scry/scry)
-├── LICENSE                       # MIT Open Source License
-├── README.md                     # Documentation
-├── Dockerfile                    # Container image for dev environment
-├── docker-compose.yml            # PostgreSQL, MySQL, MariaDB, SQL Server stack
-├── phpunit.xml                   # PHPUnit Test Suite Configuration
-├── tests/                        # Unit & Feature Test Suite
-├── src/                          # PHP Source Code & Driver Inspectors
-│   ├── ScryServiceProvider.php    # Core Package Service Provider
-│   ├── DatabaseExplorerManager.php# Connection Prober & Driver Resolver
-│   ├── Contracts/                # DatabaseInspector Interface
-│   ├── Services/                 # SqlRunner, ExportService, ImportService, GlobalSearch, TuningAdvisor
-│   ├── Http/Controllers/         # ApiController
-│   └── Inspectors/               # Postgres, Mysql, Mariadb, Sqlite, Sqlsrv Inspectors
-├── routes/                       # Web & API Routes (/scry & /scry/api)
-├── resources/                    # Blade views & Vue 3 SPA frontend
-└── dummy-app/                    # Host Testing Application
+http://your-app.test/scry
 ```
+
+Use the top-navigation connection dropdown to toggle between database connections configured in your application's `config/database.php`. Scry automatically tests connection health and loads table schemas on demand.
+
+---
+
+## Security
+
+> [!CAUTION]
+> **STRICT SECURITY WARNING**
+> Scry provides administrative access to read schema definitions and execute raw SQL queries on your database. **Do not expose Scry in production environments without proper gate authorization.**
+
+To authorize users in non-local environments, define a custom authorization callback using `Scry::auth()` inside your `AppServiceProvider` or `AuthServiceProvider`:
+
+```php
+use Illuminate\Http\Request;
+use Scry\Scry;
+
+public function boot(): void
+{
+    Scry::auth(function (Request $request) {
+        return app()->environment('local') ||
+               ($request->user() && $request->user()->is_admin);
+    });
+}
+```
+
+---
+
+## Contributing
+
+We welcome community contributions! While Scry includes built-in inspectors for PostgreSQL and MySQL, community support and Pull Requests are actively encouraged to refine and expand drivers for **SQLite** and **SQL Server** (`sqlsrv`).
+
+If you are interested in contributing schema introspection queries, extending driver interfaces, or improving the Vue frontend, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide.
 
 ---
 
 ## License
 
 This package is open-sourced software licensed under the **[MIT License](LICENSE)**.
-
-Copyright (c) 2026 **Daniel Dickson**.
