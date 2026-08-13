@@ -22,9 +22,27 @@ abstract class AbstractInspector implements DatabaseInspector
 
         $total = $query->count();
 
-        if ($sortBy) {
+        $effectiveSortBy = $sortBy;
+        if (!$effectiveSortBy) {
+            try {
+                $schema = $this->getTableSchema($table);
+                foreach ($schema['columns'] ?? [] as $col) {
+                    if ($col['is_primary'] ?? false) {
+                        $effectiveSortBy = $col['name'];
+                        break;
+                    }
+                }
+                if (!$effectiveSortBy && !empty($schema['columns'])) {
+                    $effectiveSortBy = $schema['columns'][0]['name'];
+                }
+            } catch (\Throwable $e) {
+                // fallback
+            }
+        }
+
+        if ($effectiveSortBy) {
             $direction = strtolower($sortDir) === 'desc' ? 'desc' : 'asc';
-            $query->orderBy($sortBy, $direction);
+            $query->orderBy($effectiveSortBy, $direction);
         }
 
         $items = $query->forPage($page, $perPage)->get()->toArray();
