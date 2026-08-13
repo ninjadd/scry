@@ -234,11 +234,34 @@
               </div>
 
               <div v-else>
-                <!-- Textarea for long text or JSON -->
+                <!-- JSON Formatted Editor -->
+                <div v-if="isJsonColumn(col)">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 flex items-center space-x-1">
+                      <span>JSON Object / Array</span>
+                    </span>
+                    <button
+                      type="button"
+                      @click="formatJsonField(col.name)"
+                      class="text-[10px] font-bold scry-badge-pale-blue px-2 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      Format JSON
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="editFormData[col.name]"
+                    rows="6"
+                    :disabled="drawerMode === 'edit' && col.is_primary && col.auto_increment"
+                    class="w-full scry-bg-input border scry-border rounded-lg p-3 text-xs font-mono scry-accent-text focus:outline-none focus:ring-2 focus:ring-pink-500/50 shadow-inner"
+                    placeholder="{ &quot;key&quot;: &quot;value&quot; }"
+                  ></textarea>
+                </div>
+
+                <!-- Textarea for long text -->
                 <textarea
-                  v-if="col.data_type && (col.data_type.includes('text') || col.data_type.includes('json') || col.name === 'content' || col.name === 'description')"
+                  v-else-if="col.data_type && (col.data_type.includes('text') || col.name === 'content' || col.name === 'description')"
                   v-model="editFormData[col.name]"
-                  rows="3"
+                  rows="4"
                   :disabled="drawerMode === 'edit' && col.is_primary && col.auto_increment"
                   class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main focus:outline-none focus:ring-2 focus:ring-pink-500/50 disabled:opacity-50"
                   :placeholder="`Enter ${col.name}...`"
@@ -440,13 +463,70 @@ const fetchData = async () => {
   }
 };
 
+const formatJsonIfValid = (val) => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val, null, 2);
+    } catch (e) {
+      return String(val);
+    }
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        return val;
+      }
+    }
+  }
+  return val;
+};
+
+const isJsonColumn = (col) => {
+  if (!col) return false;
+  const colType = (col.data_type || '').toLowerCase();
+  if (colType.includes('json') || colType.includes('array')) {
+    return true;
+  }
+  const val = editFormData.value[col.name];
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const formatJsonField = (colName) => {
+  const currentVal = editFormData.value[colName];
+  if (typeof currentVal === 'string') {
+    try {
+      const parsed = JSON.parse(currentVal);
+      editFormData.value[colName] = JSON.stringify(parsed, null, 2);
+    } catch (err) {
+      alert('Invalid JSON syntax: ' + err.message);
+    }
+  }
+};
+
 const openEditDrawer = (row) => {
   drawerMode.value = 'edit';
   selectedRow.value = row;
-  editFormData.value = { ...row };
+  editFormData.value = {};
   nullToggles.value = {};
+
   for (const k in row) {
     nullToggles.value[k] = (row[k] === null);
+    if (row[k] !== null) {
+      editFormData.value[k] = formatJsonIfValid(row[k]);
+    } else {
+      editFormData.value[k] = '';
+    }
   }
   showDrawer.value = true;
 };
