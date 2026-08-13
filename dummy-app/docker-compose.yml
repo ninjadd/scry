@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-  # ----------------------------------------
-  # PostgreSQL Container (Primary Target)
-  # ----------------------------------------
   pgsql:
     image: postgres:16
     container_name: scry_postgres
@@ -18,9 +15,6 @@ services:
     networks:
       - scry_network
 
-  # ----------------------------------------
-  # MySQL Container (Secondary Target)
-  # ----------------------------------------
   mysql:
     image: mysql:8.0
     container_name: scry_mysql
@@ -36,9 +30,39 @@ services:
     networks:
       - scry_network
 
+  mariadb:
+    image: mariadb:10.11
+    container_name: scry_mariadb
+    ports:
+      - "3307:3306"
+    environment:
+      MARIADB_USER: scry_user
+      MARIADB_PASSWORD: secret_password
+      MARIADB_DATABASE: scry_maria_db
+      MARIADB_ROOT_PASSWORD: secret_root_password
+    volumes:
+      - scry_maria_data:/var/lib/mysql
+    networks:
+      - scry_network
+
+  sqlsrv:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: scry_sqlsrv
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Secret_Password123!"
+    volumes:
+      - scry_sql_data:/var/opt/mssql
+    networks:
+      - scry_network
+
 volumes:
   scry_pg_data:
   scry_my_data:
+  scry_maria_data:
+  scry_sql_data:
 
 networks:
   scry_network:

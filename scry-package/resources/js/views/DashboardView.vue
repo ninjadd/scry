@@ -178,7 +178,7 @@
             class="px-4 py-2 text-xs font-mono font-bold rounded-lg border transition-all cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50"
             :class="store.currentConnection === conn ? 'scry-accent-bg border-pink-600' : 'scry-bg-input scry-text-main scry-border hover:scry-border-main'"
           >
-            {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : conn) }})
+            {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : (conn === 'mariadb' ? 'MariaDB' : (conn === 'sqlite' ? 'SQLite' : (conn === 'sqlsrv' ? 'SQL Server' : conn)))) }})
           </button>
         </div>
       </div>

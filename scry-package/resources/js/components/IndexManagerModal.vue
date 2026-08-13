@@ -156,9 +156,10 @@ const executeCreateIndex = async () => {
   if (!newIndexName.value.trim() || !newIndexColumn.value.trim()) return;
   isSubmitting.value = true;
 
-  const quote = store.driver === 'pgsql' ? '"' : '`';
+  const openQuote = store.driver === 'sqlsrv' ? '[' : (store.driver === 'pgsql' || store.driver === 'sqlite' ? '"' : '`');
+  const closeQuote = store.driver === 'sqlsrv' ? ']' : (store.driver === 'pgsql' || store.driver === 'sqlite' ? '"' : '`');
   const typeStr = newIndexType.value === 'UNIQUE' ? 'UNIQUE INDEX' : (newIndexType.value === 'FULLTEXT' ? 'FULLTEXT INDEX' : 'INDEX');
-  const sql = `CREATE ${typeStr} ${quote}${newIndexName.value}${quote} ON ${quote}${props.tableName}${quote} (${quote}${newIndexColumn.value}${quote});`;
+  const sql = `CREATE ${typeStr} ${openQuote}${newIndexName.value}${closeQuote} ON ${openQuote}${props.tableName}${closeQuote} (${openQuote}${newIndexColumn.value}${closeQuote});`;
 
   try {
     const res = await store.scryFetch('/sql/execute', {
@@ -185,10 +186,12 @@ const executeCreateIndex = async () => {
 const executeDropIndex = async (indexName) => {
   if (!confirm(`Are you sure you want to DROP INDEX [${indexName}] from table [${props.tableName}]?`)) return;
 
-  const quote = store.driver === 'pgsql' ? '"' : '`';
-  const sql = store.driver === 'pgsql'
-    ? `DROP INDEX ${quote}${indexName}${quote};`
-    : `DROP INDEX ${quote}${indexName}${quote} ON ${quote}${props.tableName}${quote};`;
+  const openQuote = store.driver === 'sqlsrv' ? '[' : (store.driver === 'pgsql' || store.driver === 'sqlite' ? '"' : '`');
+  const closeQuote = store.driver === 'sqlsrv' ? ']' : (store.driver === 'pgsql' || store.driver === 'sqlite' ? '"' : '`');
+
+  const sql = (store.driver === 'pgsql' || store.driver === 'sqlite')
+    ? `DROP INDEX ${openQuote}${indexName}${closeQuote};`
+    : `DROP INDEX ${openQuote}${indexName}${closeQuote} ON ${openQuote}${props.tableName}${closeQuote};`;
 
   try {
     const res = await store.scryFetch('/sql/execute', {

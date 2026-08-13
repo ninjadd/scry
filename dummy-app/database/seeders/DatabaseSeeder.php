@@ -12,17 +12,20 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $conn = config('database.default');
+
         // 1. Create 120 Users
-        $users = User::factory()->count(120)->create();
+        $users = User::factory()->connection($conn)->count(120)->create();
 
         // 2. Create 100 Categories
-        $categories = Category::factory()->count(100)->create();
+        $categories = Category::factory()->connection($conn)->count(100)->create();
 
         // 3. Create 100 Tags
-        $tags = Tag::factory()->count(100)->create();
+        $tags = Tag::factory()->connection($conn)->count(100)->create();
 
         // 4. Create 150 Posts mapped to random users & categories
-        $posts = Post::factory()->count(150)->make()->each(function ($post) use ($users, $categories) {
+        $posts = Post::factory()->connection($conn)->count(150)->make()->each(function ($post) use ($users, $categories, $conn) {
+            $post->setConnection($conn);
             $post->user_id = $users->random()->id;
             $post->category_id = $categories->random()->id;
             $post->save();

@@ -39,7 +39,7 @@
             class="w-full scry-bg-input border scry-border rounded px-2.5 py-1.5 text-xs scry-text-main focus:outline-none focus:ring-2 focus:ring-pink-500/50 font-mono shadow-sm"
           >
             <option v-for="conn in connectionStore.availableConnections" :key="conn" :value="conn">
-              {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : conn) }})
+              {{ conn }} ({{ conn === 'pgsql' ? 'PostgreSQL' : (conn === 'mysql' ? 'MySQL' : (conn === 'mariadb' ? 'MariaDB' : (conn === 'sqlite' ? 'SQLite' : (conn === 'sqlsrv' ? 'SQL Server' : conn)))) }})
             </option>
           </select>
         </div>

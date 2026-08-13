@@ -165,6 +165,38 @@ class ServerTuningAdvisor
             } catch (\Throwable $e) {
                 // Ignore
             }
+        } elseif ($driver === 'sqlsrv') {
+            try {
+                $raw = $connection->select("
+                    SELECT 
+                        s.session_id AS pid,
+                        s.login_name AS [user],
+                        s.host_name AS host,
+                        DB_NAME(r.database_id) AS db,
+                        r.status AS state,
+                        r.total_elapsed_time / 1000 AS time,
+                        t.text AS info
+                    FROM sys.dm_exec_requests r
+                    CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+                    INNER JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+                    WHERE s.is_user_process = 1;
+                ");
+                foreach ($raw as $r) {
+                    $arr = (array)$r;
+                    $processes[] = [
+                        'pid' => $arr['pid'] ?? 0,
+                        'user' => $arr['user'] ?? 'unknown',
+                        'host' => (string)($arr['host'] ?? 'local'),
+                        'db' => $arr['db'] ?? '',
+                        'command' => 'Query',
+                        'time' => (int)($arr['time'] ?? 0),
+                        'state' => $arr['state'] ?? '',
+                        'info' => $arr['info'] ?? '',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
         }
 
         return [
@@ -186,6 +218,8 @@ class ServerTuningAdvisor
             $connection->statement("KILL {$pid};");
         } elseif ($driver === 'pgsql') {
             $connection->select("SELECT pg_terminate_backend({$pid});");
+        } elseif ($driver === 'sqlsrv') {
+            $connection->statement("KILL {$pid};");
         } else {
             throw new \InvalidArgumentException("Process termination is not supported for {$driver}.");
         }

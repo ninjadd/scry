@@ -86,7 +86,10 @@ scry/ (Workspace Root)
 1. **Driver Manager Pattern (`DatabaseExplorerManager`)**:
    - Dynamically resolves database inspectors via `forConnection(?string $name = null)`.
    - Maps `pgsql` / `postgres` -> `PostgresInspector`.
-   - Maps `mysql` / `mariadb` -> `MysqlInspector`.
+   - Maps `mysql` -> `MysqlInspector`.
+   - Maps `mariadb` -> `MariadbInspector`.
+   - Maps `sqlite` -> `SqliteInspector`.
+   - Maps `sqlsrv` / `mssql` -> `SqlsrvInspector`.
    - Multi-server administration via `?connection=` switcher parameter.
 
 2. **Interactive DDL Table Operations**:

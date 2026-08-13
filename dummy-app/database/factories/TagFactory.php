@@ -12,11 +12,11 @@ class TagFactory extends Factory
 
     public function definition(): array
     {
-        $name = fake()->unique()->words(fake()->numberBetween(1, 2), true);
+        $name = ucfirst(fake()->words(fake()->numberBetween(1, 2), true)) . ' ' . fake()->randomNumber(4, true);
 
         return [
-            'name' => ucfirst($name),
-            'slug' => Str::slug($name) . '-' . fake()->unique()->numberBetween(100, 99999),
+            'name' => $name,
+            'slug' => Str::slug($name) . '-' . Str::random(6),
         ];
     }
 }

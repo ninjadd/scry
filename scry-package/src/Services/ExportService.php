@@ -89,14 +89,24 @@ class ExportService
             return "-- No records to export for table {$table}\n";
         }
 
-        $quoteChar = $driver === 'pgsql' ? '"' : '`';
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
         $firstRow = (array) $rows[0];
         $columns = array_keys($firstRow);
 
-        $escapedColumns = array_map(fn($col) => "{$quoteChar}{$col}{$quoteChar}", $columns);
+        $escapedColumns = array_map(fn($col) => "{$openQuote}{$col}{$closeQuote}", $columns);
         $columnsSql = implode(', ', $escapedColumns);
 
-        $sql = "-- Scry Database Dump for table {$quoteChar}{$table}{$quoteChar}\n";
+        $sql = "-- Scry Database Dump for table {$openQuote}{$table}{$closeQuote}\n";
         $sql .= "-- Driver: {$driver}\n\n";
 
         foreach ($rows as $row) {

@@ -122,7 +122,6 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import mermaid from 'mermaid';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
@@ -133,21 +132,25 @@ const erdContainer = ref(null);
 const diagramContainer = ref(null);
 const searchQuery = ref('');
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  themeVariables: {
-    fontFamily: 'Fira Code, monospace',
-    fontSize: '12px',
-    primaryColor: '#e1f2fa',
-    primaryTextColor: '#1c262a',
-    primaryBorderColor: '#b91c5c',
-    lineColor: '#b91c5c',
-    secondaryColor: '#e4f0ea',
-    tertiaryColor: '#f8f1c8',
-  },
-  securityLevel: 'loose',
-});
+const getMermaid = () => window.mermaid || null;
+
+if (window.mermaid) {
+  window.mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Fira Code, monospace',
+      fontSize: '12px',
+      primaryColor: '#e1f2fa',
+      primaryTextColor: '#1c262a',
+      primaryBorderColor: '#b91c5c',
+      lineColor: '#b91c5c',
+      secondaryColor: '#e4f0ea',
+      tertiaryColor: '#f8f1c8',
+    },
+    securityLevel: 'loose',
+  });
+}
 
 const filteredNodes = computed(() => {
   if (!searchQuery.value.trim()) return schemaNodes.value;
@@ -194,10 +197,12 @@ const renderDiagram = async () => {
   await nextTick();
   const def = generateMermaidDefinition(filteredNodes.value);
   try {
-    const id = `mermaid-erd-${Date.now()}`;
-    const { svg } = await mermaid.render(id, def);
-    if (diagramContainer.value) {
-      diagramContainer.value.innerHTML = svg;
+    if (window.mermaid) {
+      const id = `mermaid-erd-${Date.now()}`;
+      const { svg } = await window.mermaid.render(id, def);
+      if (diagramContainer.value) {
+        diagramContainer.value.innerHTML = svg;
+      }
     }
   } catch (err) {
     console.error('Failed to render ERD diagram:', err);

@@ -24,9 +24,22 @@ services:
       - DB_MYSQL_DATABASE=scry_my_db
       - DB_MYSQL_USERNAME=scry_user
       - DB_MYSQL_PASSWORD=secret_password
+      - DB_MARIADB_HOST=mariadb
+      - DB_MARIADB_PORT=3306
+      - DB_MARIADB_DATABASE=scry_maria_db
+      - DB_MARIADB_USERNAME=scry_user
+      - DB_MARIADB_PASSWORD=secret_password
+      - DB_SQLITE_DATABASE=/var/www/html/dummy-app/database/database.sqlite
+      - DB_SQLSRV_HOST=sqlsrv
+      - DB_SQLSRV_PORT=1433
+      - DB_SQLSRV_DATABASE=scry_sql_db
+      - DB_SQLSRV_USERNAME=sa
+      - DB_SQLSRV_PASSWORD=Secret_Password123!
     depends_on:
       - pgsql
       - mysql
+      - mariadb
+      - sqlsrv
     networks:
       - scry_network
 
@@ -59,9 +72,39 @@ services:
     networks:
       - scry_network
 
+  mariadb:
+    image: mariadb:10.11
+    container_name: scry_mariadb
+    environment:
+      MARIADB_USER: scry_user
+      MARIADB_PASSWORD: secret_password
+      MARIADB_DATABASE: scry_maria_db
+      MARIADB_ROOT_PASSWORD: secret_root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - scry_maria_data:/var/lib/mysql
+    networks:
+      - scry_network
+
+  sqlsrv:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: scry_sqlsrv
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Secret_Password123!"
+    ports:
+      - "1433:1433"
+    volumes:
+      - scry_sql_data:/var/opt/mssql
+    networks:
+      - scry_network
+
 volumes:
   scry_pg_data:
   scry_my_data:
+  scry_maria_data:
+  scry_sql_data:
 
 networks:
   scry_network:

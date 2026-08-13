@@ -10,3 +10,4 @@ dummy-app/.env
 dummy-app/bootstrap/cache/
 dummy-app/storage/
 dummy-app/composer.lock
+dummy-app/database/database.sqlite

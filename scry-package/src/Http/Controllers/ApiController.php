@@ -98,25 +98,43 @@ class ApiController extends Controller
 
         $colDefs = [];
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $quoteChar = $driver === 'pgsql' ? '"' : '`';
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
 
         foreach ($cols as $col) {
             $colName = $col['name'] ?? null;
             $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
             $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
-            $autoInc = !empty($col['auto_increment']) ? ($driver === 'pgsql' ? '' : 'AUTO_INCREMENT') : '';
+            $autoInc = '';
             $pk = !empty($col['is_primary']) ? 'PRIMARY KEY' : '';
 
-            if ($driver === 'pgsql' && !empty($col['auto_increment'])) {
-                $type = 'BIGSERIAL';
+            if (!empty($col['auto_increment'])) {
+                if ($driver === 'pgsql') {
+                    $type = 'BIGSERIAL';
+                } elseif ($driver === 'sqlite') {
+                    $type = 'INTEGER';
+                    $autoInc = 'AUTOINCREMENT';
+                } elseif ($driver === 'sqlsrv') {
+                    $autoInc = 'IDENTITY(1,1)';
+                } else {
+                    $autoInc = 'AUTO_INCREMENT';
+                }
             }
 
             if ($colName) {
-                $colDefs[] = "{$quoteChar}{$colName}{$quoteChar} {$type} {$nullable} {$autoInc} {$pk}";
+                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable} {$autoInc} {$pk}";
             }
         }
 
-        $sql = "CREATE TABLE {$quoteChar}{$tableName}{$quoteChar} (\n  " . implode(",\n  ", $colDefs) . "\n);";
+        $sql = "CREATE TABLE {$openQuote}{$tableName}{$closeQuote} (\n  " . implode(",\n  ", $colDefs) . "\n);";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);

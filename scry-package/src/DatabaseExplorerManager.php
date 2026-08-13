@@ -6,8 +6,11 @@ use Illuminate\Support\Manager;
 use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
 use Scry\Contracts\DatabaseInspector;
 use Scry\Exceptions\UnsupportedDriverException;
+use Scry\Inspectors\MariadbInspector;
 use Scry\Inspectors\MysqlInspector;
 use Scry\Inspectors\PostgresInspector;
+use Scry\Inspectors\SqliteInspector;
+use Scry\Inspectors\SqlsrvInspector;
 
 class DatabaseExplorerManager extends Manager
 {
@@ -56,6 +59,9 @@ class DatabaseExplorerManager extends Manager
         return match ($driverName) {
             'pgsql' => new PostgresInspector($connection),
             'mysql' => new MysqlInspector($connection),
+            'mariadb' => new MariadbInspector($connection),
+            'sqlite' => new SqliteInspector($connection),
+            'sqlsrv' => new SqlsrvInspector($connection),
             default => throw UnsupportedDriverException::forDriver($driverName, $connectionName),
         };
     }
@@ -73,7 +79,10 @@ class DatabaseExplorerManager extends Manager
 
         return match ($driver) {
             'pgsql', 'postgres', 'postgresql' => 'pgsql',
-            'mysql', 'mariadb' => 'mysql',
+            'mysql' => 'mysql',
+            'mariadb' => 'mariadb',
+            'sqlite', 'sqlite3' => 'sqlite',
+            'sqlsrv', 'mssql', 'sqlserver' => 'sqlsrv',
             default => throw UnsupportedDriverException::forDriver((string) $driver, $connectionName),
         };
     }
@@ -94,6 +103,36 @@ class DatabaseExplorerManager extends Manager
      * @return DatabaseInspector
      */
     protected function createMysqlDriver(): DatabaseInspector
+    {
+        return $this->forConnection();
+    }
+
+    /**
+     * Create MariaDB Inspector Driver instance.
+     *
+     * @return DatabaseInspector
+     */
+    protected function createMariadbDriver(): DatabaseInspector
+    {
+        return $this->forConnection();
+    }
+
+    /**
+     * Create SQLite Inspector Driver instance.
+     *
+     * @return DatabaseInspector
+     */
+    protected function createSqliteDriver(): DatabaseInspector
+    {
+        return $this->forConnection();
+    }
+
+    /**
+     * Create SQL Server Inspector Driver instance.
+     *
+     * @return DatabaseInspector
+     */
+    protected function createSqlsrvDriver(): DatabaseInspector
     {
         return $this->forConnection();
     }

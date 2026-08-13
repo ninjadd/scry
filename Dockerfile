@@ -1,12 +1,16 @@
 FROM php:8.3-cli-alpine
 
-# Install system dependencies & PostgreSQL / MySQL client headers
+# Install system dependencies & PostgreSQL / MySQL / SQLite / SQL Server client headers
 RUN apk add --no-cache \
+    $PHPIZE_DEPS \
     git \
     curl \
     unzip \
     libzip-dev \
     postgresql-dev \
+    sqlite-dev \
+    unixodbc-dev \
+    freetds-dev \
     nodejs \
     npm \
     icu-dev
@@ -17,6 +21,7 @@ RUN docker-php-ext-install \
     pdo_mysql \
     pdo_pgsql \
     pgsql \
+    pdo_sqlite \
     zip \
     intl
 
