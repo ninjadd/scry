@@ -1,6 +1,6 @@
 # Scry Database Manager Package (`scry/scry`)
 
-Scry is an open-source, enterprise-grade database manager package for Laravel applications. It provides a modern, reactive Vue 3 GUI to inspect and manage multi-database engines (PostgreSQL, MySQL, MariaDB) in real time.
+Scry is an open-source, enterprise-grade database manager package for Laravel applications. It provides a modern, reactive Vue 3 GUI to inspect and manage multi-database engines (PostgreSQL, MySQL, MariaDB, SQLite, SQL Server) in real time.
 
 ---
 
@@ -23,6 +23,38 @@ The Scry package UI is styled using custom design tokens derived from the **Seas
 
 ---
 
+## Automated Testing Suite & QA Architecture
+
+Scry features an automated PHPUnit / Orchestra Testbench test suite covering unit, integration, and feature tests across all 5 database engine drivers.
+
+### Running Automated Tests
+```bash
+# Run unit & feature tests via composer alias
+composer test
+
+# Direct PHPUnit execution
+./vendor/bin/phpunit
+```
+
+### Test Suite Structure
+```
+tests/
+├── TestCase.php                               # Orchestra Testbench base setup & mock connections
+├── Unit/
+│   ├── DatabaseExplorerManagerTest.php         # Driver manager resolution & factory methods
+│   ├── SqliteInspectorTest.php                 # SQLite inspector DDL, catalog & CRUD operations
+│   ├── InspectorsUnitTest.php                  # Inspector instantiations across 5 DB engines
+│   ├── SqlRunnerTest.php                      # Raw SQL execution, timing & error payloads
+│   ├── ExportServiceTest.php                  # ExportService (CSV, SQL, JSON, XML, PDF)
+│   ├── ImportServiceTest.php                  # Quote-aware SQL statement parser & CSV import
+│   ├── GlobalSearchServiceTest.php            # Dynamic SQL database-level pattern searching
+│   └── ServerTuningAdvisorTest.php            # Status variable analysis & process list routines
+└── Feature/
+    └── ApiControllerTest.php                  # End-to-end API HTTP integration endpoints
+```
+
+---
+
 ## Architecture & Component Hierarchy
 
 ```
@@ -36,48 +68,22 @@ src/
 ├── Services/
 │   ├── SqlRunner.php                 # Query type detection & SQL execution
 │   ├── ExportService.php             # ExportService (CSV, SQL, XML, PDF, Word .doc, ODT, JSON, LaTeX)
-│   ├── ImportService.php             # ImportService (SQL script & CSV streaming batch parser)
-│   ├── GlobalSearchService.php       # Global Search Service across text columns & tables
-│   └── ServerTuningAdvisor.php       # MySQL Status Variables & Buffer Pool Tuning Advisor
+│   ├── ImportService.php             # ImportService (Quote-aware SQL parser & CSV batch stream)
+│   ├── GlobalSearchService.php       # Database-level LIKE search across text columns
+│   └── ServerTuningAdvisor.php       # Status Variables & Process List Tuning Advisor
 ├── Inspectors/
 │   ├── AbstractInspector.php          # Base inspector & safe query builder pagination
-│   ├── PostgresInspector.php          # PostgreSQL catalog inspector (jsonb, uuid, timestamptz)
-│   └── MysqlInspector.php             # MySQL information_schema inspector
+│   ├── PostgresInspector.php          # PostgreSQL catalog inspector
+│   ├── MysqlInspector.php             # MySQL information_schema inspector
+│   ├── MariadbInspector.php           # MariaDB catalog inspector
+│   ├── SqliteInspector.php            # SQLite master & PRAGMA inspector
+│   └── SqlsrvInspector.php            # SQL Server sys views inspector
 └── Http/
     ├── Controllers/
     │   ├── HomeController.php          # Serves Blade SPA view container
     │   └── ApiController.php          # JSON API endpoints
     └── Middleware/
-        └── Authorize.php              # Local environment security gate
-
-routes/
-├── web.php                            # Web routes (/scry & /db-manager)
-└── api.php                            # API routes (/scry/api & /db-manager/api)
-
-resources/
-├── js/
-│   ├── App.vue                        # SPA Shell, Categorized Nav & Side Nav Theme Toggle
-│   ├── app.js                         # Vue 3 App entry point
-│   ├── app.css                        # Seasons #63 CSS Custom Properties
-│   ├── router.js                      # Vue Router mapping 12 views
-│   ├── stores/
-│   │   └── useConnectionStore.js      # Connection switcher Pinia store
-│   ├── views/
-│   │   ├── DashboardView.vue          # Real-time server performance metrics and stats
-│   │   ├── TableBrowserView.vue       # Table browser with Create Table, Copy Table, Rename Table modals
-│   │   ├── DataGridView.vue           # Paginated data table grid with CSV/SQL exports
-│   │   ├── QueryRunnerView.vue        # Raw SQL console with Bookmarks & Query History Drawer
-│   │   ├── QueryBuilderQBEView.vue    # Visual QBE query builder (edit in console or execute directly)
-│   │   ├── SchemaVisualizerERDView.vue # ERD diagram visualizer (Export Mermaid, SVG, PNG)
-│   │   ├── ServerTuningView.vue       # Database server optimization recommendations
-│   │   ├── GlobalSearchView.vue       # Cross-table string pattern search
-│   │   ├── UserManagementView.vue     # MySQL user accounts & Create User / Privilege Matrix modals
-│   │   ├── RoutinesView.vue           # Stored Procedures, Functions, & Triggers manager with creation modals
-│   │   └── ImportExportView.vue       # Multi-format import and export tool studio (.doc & .odt added)
-│   └── components/
-│       └── BlobTransformComponent.vue # BLOB image preview, hex view, and binary download
-└── views/
-    └── index.blade.php                # Host Blade container view
+        └── Authorize.php              # Local/testing environment security gate
 ```
 
 ---

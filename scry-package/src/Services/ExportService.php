@@ -132,7 +132,7 @@ class ExportService
             }
 
             $valuesSql = implode(', ', $values);
-            $sql .= "INSERT INTO {$quoteChar}{$table}{$quoteChar} ({$columnsSql}) VALUES ({$valuesSql});\n";
+            $sql .= "INSERT INTO {$openQuote}{$table}{$closeQuote} ({$columnsSql}) VALUES ({$valuesSql});\n";
         }
 
         return $sql;

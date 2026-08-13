@@ -9,7 +9,10 @@
         "explorer",
         "gui",
         "postgres",
-        "mysql"
+        "mysql",
+        "mariadb",
+        "sqlite",
+        "sqlsrv"
     ],
     "authors": [
         {
@@ -36,6 +39,9 @@
         "psr-4": {
             "Scry\\Tests\\": "tests/"
         }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
     },
     "extra": {
         "laravel": {

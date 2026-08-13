@@ -2,22 +2,26 @@
 
 namespace Scry\Services;
 
+use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
 use Scry\DatabaseExplorerManager;
 use Throwable;
 
 class GlobalSearchService
 {
     public function __construct(
-        protected DatabaseExplorerManager $explorerManager
+        protected DatabaseExplorerManager $explorerManager,
+        protected LaravelDatabaseManager $dbManager
     ) {}
 
     /**
-     * Search for a keyword across all tables and text columns in a database.
+     * Search for a keyword across all tables and text columns in a database using dynamic SQL queries.
      */
     public function search(string $term, ?string $connectionName = null): array
     {
+        $connectionName = $connectionName ?? config('database.default');
         $inspector = $this->explorerManager->forConnection($connectionName);
         $tables = $inspector->getTables();
+        $db = $this->dbManager->connection($connectionName);
 
         $results = [];
 
@@ -28,7 +32,7 @@ class GlobalSearchService
             $textCols = array_column(
                 array_filter($schema['columns'], function ($col) {
                     $t = strtolower($col['data_type']);
-                    return str_contains($t, 'char') || str_contains($t, 'text') || str_contains($t, 'string') || $t === 'json' || $t === 'jsonb';
+                    return str_contains($t, 'char') || str_contains($t, 'text') || str_contains($t, 'string') || str_contains($t, 'varchar') || $t === 'json' || $t === 'jsonb';
                 }),
                 'name'
             );
@@ -38,29 +42,28 @@ class GlobalSearchService
             }
 
             try {
-                $query = $inspector->getPaginatedRows($tableName, 1, 10);
-
-                $matchingRows = [];
-                foreach ($query['data'] as $row) {
-                    $rowArray = (array)$row;
-                    foreach ($textCols as $col) {
-                        $val = (string)($rowArray[$col] ?? '');
-                        if (stripos($val, $term) !== false) {
-                            $matchingRows[] = $rowArray;
-                            break;
+                $query = $db->table($tableName)->where(function ($q) use ($textCols, $term) {
+                    foreach ($textCols as $i => $col) {
+                        if ($i === 0) {
+                            $q->where($col, 'LIKE', "%{$term}%");
+                        } else {
+                            $q->orWhere($col, 'LIKE', "%{$term}%");
                         }
                     }
-                }
+                });
 
-                if (!empty($matchingRows)) {
+                $totalMatches = $query->count();
+
+                if ($totalMatches > 0) {
+                    $sample = $query->limit(5)->get()->toArray();
                     $results[] = [
                         'table' => $tableName,
-                        'match_count' => count($matchingRows),
-                        'sample_matches' => array_slice($matchingRows, 0, 5),
+                        'match_count' => $totalMatches,
+                        'sample_matches' => array_map(fn($row) => (array) $row, $sample),
                     ];
                 }
             } catch (Throwable $e) {
-                // Ignore search exceptions
+                // Ignore search exceptions for inaccessible tables
             }
         }
 
