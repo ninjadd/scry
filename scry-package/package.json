@@ -15,6 +15,7 @@
     "vue-router": "^4.3.0"
   },
   "dependencies": {
+    "mermaid": "^11.16.1",
     "pinia": "^2.3.1"
   }
 }

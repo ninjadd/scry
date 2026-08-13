@@ -1,27 +1,44 @@
 <template>
   <div class="flex-1 flex flex-col overflow-hidden p-6 scry-bg-app">
-    <div class="mb-4 flex items-center justify-between">
+    <div class="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
       <div>
         <h2 class="text-2xl font-bold scry-text-main mb-1">ERD Database Schema Visualizer</h2>
-        <p class="text-sm scry-text-muted">Graphical representation of tables, foreign key constraints, and relationships for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
+        <p class="text-sm scry-text-muted">Interactive entity-relationship diagram with foreign key relationship arrows for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
       </div>
 
-      <div class="flex items-center space-x-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center p-0.5 rounded-lg scry-bg-input border scry-border">
+          <button
+            @click="activeView = 'diagram'"
+            class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
+            :class="activeView === 'diagram' ? 'scry-accent-bg font-bold shadow-sm' : 'scry-text-muted hover:scry-text-main'"
+          >
+            ERD Diagram View
+          </button>
+          <button
+            @click="activeView = 'cards'"
+            class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
+            :class="activeView === 'cards' ? 'scry-accent-bg font-bold shadow-sm' : 'scry-text-muted hover:scry-text-main'"
+          >
+            Cards View
+          </button>
+        </div>
+
         <button
           @click="exportMermaid"
-          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-pale-blue transition-colors cursor-pointer"
+          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-pale-blue hover:opacity-80 transition-opacity cursor-pointer shadow-sm"
         >
           Export Mermaid Code
         </button>
         <button
           @click="exportSvg"
-          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-glaucous transition-colors cursor-pointer"
+          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-glaucous hover:opacity-80 transition-opacity cursor-pointer shadow-sm"
         >
           Export SVG
         </button>
         <button
           @click="exportPng"
-          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-sulphur transition-colors cursor-pointer"
+          class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-sulphur hover:opacity-80 transition-opacity cursor-pointer shadow-sm"
         >
           Export PNG
         </button>
@@ -29,7 +46,7 @@
     </div>
 
     <!-- Search Filter & Summary Bar -->
-    <div v-if="!loading" class="mb-4 flex items-center justify-between gap-3">
+    <div v-if="!loading" class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 select-none">
       <div class="flex items-center space-x-2">
         <input
           v-model="searchQuery"
@@ -44,21 +61,31 @@
 
       <div class="flex items-center space-x-2 text-xs font-mono">
         <span class="px-2.5 py-1 rounded scry-badge-glaucous font-bold">
-          {{ totalForeignKeys }} FK Constraints
+          {{ totalForeignKeys }} Foreign Key Arrows
         </span>
       </div>
     </div>
 
-    <!-- ERD Canvas View -->
+    <!-- Loading -->
     <div v-if="loading" class="py-20 text-center scry-text-muted font-mono text-xs">
       Building entity-relationship diagram...
     </div>
 
+    <!-- Main Visualizer Area -->
     <div v-else class="flex-1 overflow-auto scry-bg-card border scry-border rounded-xl p-6 shadow-sm flex flex-col">
       <div v-if="filteredNodes.length === 0" class="py-16 text-center text-xs scry-text-muted font-mono">
         No entities matching filter "{{ searchQuery }}".
       </div>
-      <div v-else id="erd-container" ref="erdContainer" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Real ERD Mermaid Visualizer with Arrows -->
+      <div
+        v-show="activeView === 'diagram' && filteredNodes.length > 0"
+        ref="diagramContainer"
+        class="flex-1 overflow-auto flex items-center justify-center min-h-[500px] p-4 font-mono text-xs"
+      ></div>
+
+      <!-- Table Cards Grid View -->
+      <div v-show="activeView === 'cards' && filteredNodes.length > 0" id="erd-container" ref="erdContainer" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
           v-for="t in filteredNodes"
           :key="t.table"
@@ -94,14 +121,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import mermaid from 'mermaid';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
 const loading = ref(true);
+const activeView = ref('diagram'); // 'diagram' or 'cards'
 const schemaNodes = ref([]);
 const erdContainer = ref(null);
+const diagramContainer = ref(null);
 const searchQuery = ref('');
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'Fira Code, monospace',
+    fontSize: '12px',
+    primaryColor: '#e1f2fa',
+    primaryTextColor: '#1c262a',
+    primaryBorderColor: '#b91c5c',
+    lineColor: '#b91c5c',
+    secondaryColor: '#e4f0ea',
+    tertiaryColor: '#f8f1c8',
+  },
+  securityLevel: 'loose',
+});
 
 const filteredNodes = computed(() => {
   if (!searchQuery.value.trim()) return schemaNodes.value;
@@ -115,6 +161,48 @@ const filteredNodes = computed(() => {
 const totalForeignKeys = computed(() => {
   return schemaNodes.value.reduce((acc, node) => acc + (node.foreign_keys?.length || 0), 0);
 });
+
+const generateMermaidDefinition = (nodes) => {
+  let def = 'erDiagram\n';
+  const sanitizeName = (name) => (name || '').replace(/[^a-zA-Z0-9_]/g, '_');
+  const sanitizeType = (type) => (type || 'string').replace(/[^a-zA-Z0-9_]/g, '_');
+
+  for (const node of nodes) {
+    const tableName = sanitizeName(node.table);
+    def += `    ${tableName} {\n`;
+    for (const c of node.columns) {
+      const colName = sanitizeName(c.name);
+      const colType = sanitizeType(c.data_type || c.full_type);
+      const pkFk = c.is_primary ? 'PK' : (c.is_foreign_key ? 'FK' : '');
+      def += `        ${colType} ${colName} ${pkFk}\n`;
+    }
+    def += `    }\n`;
+
+    if (node.foreign_keys) {
+      for (const fk of node.foreign_keys) {
+        const targetTable = sanitizeName(fk.foreign_table_name);
+        const sourceCol = sanitizeName(fk.column_name);
+        def += `    ${tableName} }|..|| ${targetTable} : "${sourceCol}"\n`;
+      }
+    }
+  }
+  return def;
+};
+
+const renderDiagram = async () => {
+  if (filteredNodes.value.length === 0) return;
+  await nextTick();
+  const def = generateMermaidDefinition(filteredNodes.value);
+  try {
+    const id = `mermaid-erd-${Date.now()}`;
+    const { svg } = await mermaid.render(id, def);
+    if (diagramContainer.value) {
+      diagramContainer.value.innerHTML = svg;
+    }
+  } catch (err) {
+    console.error('Failed to render ERD diagram:', err);
+  }
+};
 
 const loadFullSchema = async () => {
   loading.value = true;
@@ -138,25 +226,13 @@ const loadFullSchema = async () => {
     console.error(err);
   } finally {
     loading.value = false;
+    renderDiagram();
   }
 };
 
 const exportMermaid = () => {
-  let mermaid = 'erDiagram\n';
-  for (const node of schemaNodes.value) {
-    mermaid += `    ${node.table} {\n`;
-    for (const c of node.columns) {
-      const pkFk = c.is_primary ? 'PK' : (c.is_foreign_key ? 'FK' : '');
-      mermaid += `        ${c.data_type} ${c.name} ${pkFk}\n`;
-    }
-    mermaid += `    }\n`;
-
-    for (const fk of node.foreign_keys) {
-      mermaid += `    ${node.table} }|..|| ${fk.foreign_table_name} : "${fk.column_name}"\n`;
-    }
-  }
-
-  const blob = new Blob([mermaid], { type: 'text/plain' });
+  const def = generateMermaidDefinition(filteredNodes.value);
+  const blob = new Blob([def], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -165,9 +241,13 @@ const exportMermaid = () => {
 };
 
 const exportSvg = () => {
-  const content = erdContainer.value ? erdContainer.value.innerHTML : '';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">${content}</div></foreignObject></svg>`;
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const svgEl = diagramContainer.value ? diagramContainer.value.querySelector('svg') : null;
+  if (!svgEl) {
+    alert('No ERD diagram SVG available to export.');
+    return;
+  }
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -176,10 +256,49 @@ const exportSvg = () => {
 };
 
 const exportPng = () => {
-  alert('PNG diagram export ready. Downloading SVG vector copy.');
-  exportSvg();
+  const svgEl = diagramContainer.value ? diagramContainer.value.querySelector('svg') : null;
+  if (!svgEl) {
+    alert('No ERD diagram SVG available to export.');
+    return;
+  }
+
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  img.onload = () => {
+    const bbox = svgEl.getBoundingClientRect();
+    const width = Math.max((bbox.width || 1200), 800) * 2;
+    const height = Math.max((bbox.height || 800), 600) * 2;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.fillStyle = '#faf9f5';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    URL.revokeObjectURL(url);
+
+    const pngUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = pngUrl;
+    a.download = `erd_${store.currentConnection}.png`;
+    a.click();
+  };
+
+  img.src = url;
 };
 
 onMounted(loadFullSchema);
+watch(searchQuery, renderDiagram);
+watch(activeView, (newVal) => {
+  if (newVal === 'diagram') renderDiagram();
+});
 watch(() => store.currentConnection, loadFullSchema);
 </script>
+
