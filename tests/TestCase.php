@@ -67,6 +67,5 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('scry.path', 'scry');
         $app['config']->set('scry.middleware', ['web']);
         $app['config']->set('scry.allowed_environments', ['local', 'testing']);
-        $app['config']->set('database-manager.allowed_environments', ['local', 'testing']);
     }
 }

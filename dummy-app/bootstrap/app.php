@@ -13,7 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->validateCsrfTokens(except: [
             'scry/api/*',
-            'db-manager/api/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

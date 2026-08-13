@@ -55,7 +55,6 @@ class ScryServiceProvider extends ServiceProvider
     protected function registerResources(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'scry');
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'database-manager');
     }
 
     /**

@@ -38,7 +38,7 @@ class Scry
             return (bool) call_user_func(static::$authUsing, $request);
         }
 
-        $allowedEnvs = config('scry.allowed_environments', config('database-manager.allowed_environments', ['local', 'testing']));
+        $allowedEnvs = config('scry.allowed_environments', ['local', 'testing']);
 
         return in_array(app()->environment(), $allowedEnvs);
     }

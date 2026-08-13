@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Scry\Http\Controllers\ApiController;
 use Scry\Http\Middleware\Authorize;
 
-$path = config('scry.path', config('database-manager.path', 'scry'));
-$middleware = array_merge(config('scry.middleware', config('database-manager.middleware', ['web'])), [Authorize::class]);
+$path = config('scry.path', 'scry');
+$middleware = array_merge(config('scry.middleware', ['web']), [Authorize::class]);
 
 Route::group([
     'prefix' => $path . '/api',
@@ -63,49 +63,3 @@ Route::group([
     Route::post('/sql/execute', [ApiController::class, 'executeSql'])->name('sql.execute');
     Route::post('/query', [ApiController::class, 'query'])->name('query');
 });
-
-if ($path !== 'db-manager') {
-    Route::group([
-        'prefix' => 'db-manager/api',
-        'middleware' => $middleware,
-        'as' => 'scry.api.alias.',
-    ], function () {
-        Route::get('/databases', [ApiController::class, 'databases']);
-        Route::post('/databases', [ApiController::class, 'createDatabase']);
-        Route::delete('/databases', [ApiController::class, 'dropDatabase']);
-
-        Route::get('/server/stats', [ApiController::class, 'serverStats']);
-        Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions']);
-
-        Route::get('/views', [ApiController::class, 'views']);
-        Route::get('/triggers', [ApiController::class, 'triggers']);
-        Route::post('/triggers', [ApiController::class, 'createTrigger']);
-        Route::get('/procedures', [ApiController::class, 'procedures']);
-        Route::post('/routines', [ApiController::class, 'createRoutine']);
-
-        Route::get('/users', [ApiController::class, 'users']);
-        Route::post('/users', [ApiController::class, 'createUser']);
-        Route::post('/users/privileges', [ApiController::class, 'manageUserPrivileges']);
-
-        Route::get('/search', [ApiController::class, 'globalSearch']);
-        Route::post('/import', [ApiController::class, 'importFile']);
-        Route::get('/export/{table}', [ApiController::class, 'exportTable']);
-
-        Route::get('/tables', [ApiController::class, 'tables']);
-        Route::post('/tables', [ApiController::class, 'createTable']);
-        Route::post('/tables/copy', [ApiController::class, 'copyTable']);
-        Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable']);
-        Route::delete('/tables/{table}', [ApiController::class, 'dropTable']);
-
-        Route::get('/tables/{table}/schema', [ApiController::class, 'schema']);
-        Route::get('/tables/{table}/rows', [ApiController::class, 'rows']);
-        Route::get('/tables/{table}/data', [ApiController::class, 'rows']);
-
-        Route::post('/tables/{table}/rows', [ApiController::class, 'insertRow']);
-        Route::put('/tables/{table}/rows', [ApiController::class, 'updateRow']);
-        Route::delete('/tables/{table}/rows', [ApiController::class, 'deleteRow']);
-
-        Route::post('/sql/execute', [ApiController::class, 'executeSql']);
-        Route::post('/query', [ApiController::class, 'query']);
-    });
-}

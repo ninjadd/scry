@@ -22,7 +22,6 @@ class DatabaseExplorerManager extends Manager
     public function getDefaultDriver(): string
     {
         $connectionName = $this->container['config']->get('scry.connection')
-            ?? $this->container['config']->get('database-manager.connection')
             ?? $this->container['config']->get('database.default');
 
         return $this->getDriverForConnection($connectionName);
@@ -50,7 +49,6 @@ class DatabaseExplorerManager extends Manager
     {
         $connectionName = $connectionName
             ?? $this->container['config']->get('scry.connection')
-            ?? $this->container['config']->get('database-manager.connection')
             ?? $this->container['config']->get('database.default');
 
         $driverName = $this->getDriverForConnection($connectionName);
