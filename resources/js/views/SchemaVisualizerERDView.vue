@@ -122,35 +122,33 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import mermaid from 'mermaid';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
 const store = useConnectionStore();
 const loading = ref(true);
+const renderError = ref('');
 const activeView = ref('diagram'); // 'diagram' or 'cards'
 const schemaNodes = ref([]);
 const erdContainer = ref(null);
 const diagramContainer = ref(null);
 const searchQuery = ref('');
 
-const getMermaid = () => window.mermaid || null;
-
-if (window.mermaid) {
-  window.mermaid.initialize({
-    startOnLoad: false,
-    theme: 'base',
-    themeVariables: {
-      fontFamily: 'Fira Code, monospace',
-      fontSize: '12px',
-      primaryColor: '#e1f2fa',
-      primaryTextColor: '#1c262a',
-      primaryBorderColor: '#b91c5c',
-      lineColor: '#b91c5c',
-      secondaryColor: '#e4f0ea',
-      tertiaryColor: '#f8f1c8',
-    },
-    securityLevel: 'loose',
-  });
-}
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'Fira Code, monospace',
+    fontSize: '12px',
+    primaryColor: '#e1f2fa',
+    primaryTextColor: '#1c262a',
+    primaryBorderColor: '#b91c5c',
+    lineColor: '#b91c5c',
+    secondaryColor: '#e4f0ea',
+    tertiaryColor: '#f8f1c8',
+  },
+  securityLevel: 'loose',
+});
 
 const filteredNodes = computed(() => {
   if (!searchQuery.value.trim()) return schemaNodes.value;
@@ -168,7 +166,12 @@ const totalForeignKeys = computed(() => {
 const generateMermaidDefinition = (nodes) => {
   let def = 'erDiagram\n';
   const sanitizeName = (name) => (name || '').replace(/[^a-zA-Z0-9_]/g, '_');
-  const sanitizeType = (type) => (type || 'string').replace(/[^a-zA-Z0-9_]/g, '_');
+  const sanitizeType = (type) => {
+    let clean = (type || 'string').toLowerCase().replace(/\(.*?\)/g, '').replace(/\[\]/g, '_array').replace(/[^a-zA-Z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    return clean || 'string';
+  };
+
+  const validTableNames = new Set(nodes.map(n => sanitizeName(n.table)));
 
   for (const node of nodes) {
     const tableName = sanitizeName(node.table);
@@ -176,7 +179,7 @@ const generateMermaidDefinition = (nodes) => {
     for (const c of node.columns) {
       const colName = sanitizeName(c.name);
       const colType = sanitizeType(c.data_type || c.full_type);
-      const pkFk = c.is_primary ? 'PK' : (c.is_foreign_key ? 'FK' : '');
+      const pkFk = c.is_primary ? (c.is_foreign_key ? 'PK "FK"' : 'PK') : (c.is_foreign_key ? 'FK' : '');
       def += `        ${colType} ${colName} ${pkFk}\n`;
     }
     def += `    }\n`;
@@ -185,7 +188,9 @@ const generateMermaidDefinition = (nodes) => {
       for (const fk of node.foreign_keys) {
         const targetTable = sanitizeName(fk.foreign_table_name);
         const sourceCol = sanitizeName(fk.column_name);
-        def += `    ${tableName} }|..|| ${targetTable} : "${sourceCol}"\n`;
+        if (targetTable && sourceCol && validTableNames.has(targetTable)) {
+          def += `    ${tableName} }|..|| ${targetTable} : "${sourceCol}"\n`;
+        }
       }
     }
   }
@@ -193,19 +198,22 @@ const generateMermaidDefinition = (nodes) => {
 };
 
 const renderDiagram = async () => {
+  renderError.value = '';
   if (filteredNodes.value.length === 0) return;
   await nextTick();
   const def = generateMermaidDefinition(filteredNodes.value);
   try {
-    if (window.mermaid) {
-      const id = `mermaid-erd-${Date.now()}`;
-      const { svg } = await window.mermaid.render(id, def);
-      if (diagramContainer.value) {
-        diagramContainer.value.innerHTML = svg;
-      }
+    const id = `mermaid-erd-${Date.now()}`;
+    const { svg } = await mermaid.render(id, def);
+    if (diagramContainer.value) {
+      diagramContainer.value.innerHTML = svg;
     }
   } catch (err) {
     console.error('Failed to render ERD diagram:', err);
+    renderError.value = err.message || 'Failed to render ERD diagram';
+    if (diagramContainer.value) {
+      diagramContainer.value.innerHTML = `<div class="p-4 text-center text-rose-500 font-mono text-xs">Error rendering ERD diagram: ${err.message || 'Syntax or rendering error'}</div>`;
+    }
   }
 };
 
