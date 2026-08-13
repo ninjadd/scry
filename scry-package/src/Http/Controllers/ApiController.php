@@ -580,6 +580,15 @@ class ApiController extends Controller
             $rowsData = $inspector->getPaginatedRows($table, 1, 5000);
             $rows = $rowsData['data'] ?? [];
 
+            if ($format === 'csv') {
+                return response()->streamDownload(function () use ($rows) {
+                    $this->exportService->streamCsv($rows);
+                }, "{$table}_export.csv", [
+                    'Content-Type' => 'text/csv; charset=UTF-8',
+                    'Cache-Control' => 'no-cache, private',
+                ]);
+            }
+
             switch ($format) {
                 case 'doc':
                 case 'word':
@@ -613,15 +622,10 @@ class ApiController extends Controller
                     $filename = "{$table}_export.tex";
                     break;
                 case 'json':
+                default:
                     $content = json_encode($rows, JSON_PRETTY_PRINT);
                     $contentType = 'application/json';
                     $filename = "{$table}_export.json";
-                    break;
-                case 'csv':
-                default:
-                    $content = $this->exportService->exportCsv($rows);
-                    $contentType = 'text/csv';
-                    $filename = "{$table}_export.csv";
                     break;
             }
 
@@ -656,6 +660,37 @@ class ApiController extends Controller
             ]);
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * GET /scry/api/schema/full
+     * Bulk fetch all table schemas in a single HTTP request to avoid N+1 frontend requests.
+     */
+    public function fullSchema(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $tablesData = $inspector->getTables();
+            $schemas = [];
+
+            foreach ($tablesData as $t) {
+                $tableName = $t['name'] ?? null;
+                if ($tableName) {
+                    $schemas[] = $inspector->getTableSchema($tableName);
+                }
+            }
+
+            return response()->json([
+                'connection' => $connection ?? config('database.default'),
+                'schemas' => $schemas,
+            ]);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
     }
 

@@ -199,7 +199,10 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useConnectionStore } from '../stores/useConnectionStore';
 
+import { useToastStore } from '../stores/useToastStore';
+
 const store = useConnectionStore();
+const toast = useToastStore();
 const route = useRoute();
 
 const query = ref('');
@@ -396,7 +399,7 @@ const runQuery = async () => {
 
 const copyResultsJSON = () => {
   navigator.clipboard.writeText(JSON.stringify(results.value, null, 2));
-  alert('Query results JSON copied to clipboard!');
+  toast.success('Query results JSON copied to clipboard!');
 };
 
 const saveCurrentBookmark = () => {

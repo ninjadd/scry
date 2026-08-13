@@ -202,6 +202,9 @@
 
       <router-view />
     </main>
+
+    <!-- Global Toast Container -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -209,6 +212,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useConnectionStore } from './stores/useConnectionStore';
+import ToastContainer from './components/ToastContainer.vue';
 
 const $route = useRoute();
 const connectionStore = useConnectionStore();

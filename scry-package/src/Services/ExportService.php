@@ -45,6 +45,37 @@ class ExportService
     }
 
     /**
+     * Stream dataset to CSV directly to output handle.
+     *
+     * @param array $rows
+     * @param resource|null $outputHandle
+     */
+    public function streamCsv(array $rows, $outputHandle = null): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        $handle = $outputHandle ?? fopen('php://output', 'w');
+
+        $firstRow = (array) $rows[0];
+        $headers = array_keys($firstRow);
+        fputcsv($handle, $headers);
+
+        foreach ($rows as $row) {
+            $rowArray = (array) $row;
+            $formatted = array_map(function ($value) {
+                if (is_array($value) || is_object($value)) {
+                    return json_encode($value);
+                }
+                return $value;
+            }, $rowArray);
+
+            fputcsv($handle, $formatted);
+        }
+    }
+
+    /**
      * Export dataset to SQL INSERT statement dump string.
      *
      * @param string $table

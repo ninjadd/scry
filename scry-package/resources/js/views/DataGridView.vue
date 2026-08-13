@@ -377,9 +377,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useConnectionStore } from '../stores/useConnectionStore';
+import { useToastStore } from '../stores/useToastStore';
 
 const props = defineProps({ table: String });
 const store = useConnectionStore();
+const toast = useToastStore();
 
 const rows = ref([]);
 const meta = ref({});
@@ -604,11 +606,13 @@ const executeConfirmedAction = async () => {
       }
     }
 
+    const actionName = confirmActionType.value;
     showConfirmModal.value = false;
     showDrawer.value = false;
     await fetchData();
+    toast.success(`Row ${actionName}d successfully in [${props.table}].`);
   } catch (err) {
-    alert(`Action Error (${confirmActionType.value}): ${err.message}`);
+    toast.error(`Action Error (${confirmActionType.value}): ${err.message}`);
   } finally {
     isSubmitting.value = false;
   }

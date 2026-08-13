@@ -49,6 +49,7 @@ Route::group([
     Route::post('/tables/{table}/truncate', [ApiController::class, 'truncateTable'])->name('tables.truncate');
     Route::post('/tables/{table}/optimize', [ApiController::class, 'optimizeTable'])->name('tables.optimize');
 
+    Route::get('/schema/full', [ApiController::class, 'fullSchema'])->name('schema.full');
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');
     Route::get('/tables/{table}/data', [ApiController::class, 'rows'])->name('data');

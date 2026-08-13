@@ -209,21 +209,13 @@ const loadFullSchema = async () => {
   schemaNodes.value = [];
 
   try {
-    const res = await store.scryFetch('/tables');
+    const res = await store.scryFetch('/schema/full');
     if (res.ok) {
       const data = await res.json();
-      const tables = data.tables || [];
-
-      for (const t of tables) {
-        const schemaRes = await store.scryFetch(`/tables/${t.name}/schema`);
-        if (schemaRes.ok) {
-          const schemaData = await schemaRes.json();
-          schemaNodes.value.push(schemaData);
-        }
-      }
+      schemaNodes.value = data.schemas || [];
     }
   } catch (err) {
-    console.error(err);
+    console.error('Failed to load full schema:', err);
   } finally {
     loading.value = false;
     renderDiagram();
