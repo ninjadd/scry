@@ -62,13 +62,25 @@
               </td>
               <td class="px-5 py-3 scry-text-main">{{ t.size }}</td>
               <td class="px-5 py-3 scry-text-main">{{ t.rows.toLocaleString() }}</td>
-              <td class="px-5 py-3 text-right space-x-2">
+              <td class="px-5 py-3 text-right space-x-1.5 flex flex-wrap justify-end gap-1">
                 <router-link
                   :to="{ name: 'data', params: { table: t.name } }"
                   class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-pale-blue transition-colors"
                 >
                   Browse Data
                 </router-link>
+                <button
+                  @click="openIndexModal(t.name)"
+                  class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-pale-blue hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  Indexes
+                </button>
+                <button
+                  @click="confirmOptimizeTable(t.name)"
+                  class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-glaucous hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  Optimize
+                </button>
                 <button
                   @click="openCopyModal(t.name)"
                   class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-glaucous transition-colors cursor-pointer"
@@ -80,6 +92,12 @@
                   class="px-2.5 py-1 text-[11px] font-semibold rounded scry-badge-sulphur transition-colors cursor-pointer"
                 >
                   Rename
+                </button>
+                <button
+                  @click="confirmTruncateTable(t.name)"
+                  class="px-2.5 py-1 text-[11px] font-semibold rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                >
+                  Truncate
                 </button>
                 <button
                   @click="confirmDropTable(t.name)"
@@ -179,17 +197,63 @@
         </div>
       </div>
     </div>
+    <!-- Index Manager Modal -->
+    <IndexManagerModal
+      :show="showIndexModal"
+      :tableName="selectedIndexTable"
+      @close="showIndexModal = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useConnectionStore } from '../stores/useConnectionStore';
+import IndexManagerModal from '../components/IndexManagerModal.vue';
 
 const store = useConnectionStore();
 const loading = ref(true);
 const tables = ref([]);
 const searchQuery = ref('');
+
+const selectedIndexTable = ref('');
+const showIndexModal = ref(false);
+
+const openIndexModal = (tableName) => {
+  selectedIndexTable.value = tableName;
+  showIndexModal.value = true;
+};
+
+const confirmTruncateTable = async (tableName) => {
+  if (!confirm(`Are you sure you want to TRUNCATE table [${tableName}]? All rows will be permanently deleted.`)) return;
+
+  try {
+    const res = await store.scryFetch(`/tables/${tableName}/truncate`, { method: 'POST' });
+    if (res.ok) {
+      await loadTables();
+    } else {
+      const data = await res.json();
+      alert('Truncate Error: ' + (data.error || 'Failed to truncate table.'));
+    }
+  } catch (err) {
+    alert('Truncate Error: ' + err.message);
+  }
+};
+
+const confirmOptimizeTable = async (tableName) => {
+  try {
+    const res = await store.scryFetch(`/tables/${tableName}/optimize`, { method: 'POST' });
+    if (res.ok) {
+      alert(`Table [${tableName}] optimized/vacuumed successfully.`);
+      await loadTables();
+    } else {
+      const data = await res.json();
+      alert('Optimize Error: ' + (data.error || 'Failed to optimize table.'));
+    }
+  } catch (err) {
+    alert('Optimize Error: ' + err.message);
+  }
+};
 
 const showCreateModal = ref(false);
 const newTableName = ref('');

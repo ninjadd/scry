@@ -210,6 +210,46 @@ class ApiController extends Controller
     }
 
     /**
+     * POST /scry/api/tables/{table}/truncate
+     */
+    public function truncateTable(string $table, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->truncateTable($table);
+
+            return response()->json([
+                'success' => $success,
+                'message' => "Table {$table} truncated successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/tables/{table}/optimize
+     */
+    public function optimizeTable(string $table, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $success = $inspector->optimizeTable($table);
+
+            return response()->json([
+                'success' => $success,
+                'message' => "Table {$table} optimized/vacuumed successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * POST /scry/api/users
      * Interactive MySQL user creation.
      */
@@ -493,6 +533,35 @@ class ApiController extends Controller
             return response()->json($inspector->getServerStats());
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * GET /scry/api/server/slow-queries
+     */
+    public function slowQueries(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+        try {
+            return response()->json($this->tuningAdvisor->getSlowQueries($connection));
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/server/kill-process
+     */
+    public function killProcess(Request $request): JsonResponse
+    {
+        $request->validate(['pid' => 'required']);
+        $pid = (int)$request->input('pid');
+        $connection = $request->input('connection');
+
+        try {
+            return response()->json($this->tuningAdvisor->killProcess($pid, $connection));
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
     }
 

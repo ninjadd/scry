@@ -255,4 +255,10 @@ class PostgresInspector extends AbstractInspector
             'return_type' => $r->return_type,
         ], $rows);
     }
+
+    public function optimizeTable(string $table): bool
+    {
+        $sql = "VACUUM ANALYZE " . $this->wrapIdentifier($table);
+        return $this->connection->statement($sql);
+    }
 }

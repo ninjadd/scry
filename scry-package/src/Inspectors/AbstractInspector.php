@@ -115,6 +115,17 @@ abstract class AbstractInspector implements DatabaseInspector
         return true;
     }
 
+    public function truncateTable(string $table): bool
+    {
+        $sql = "TRUNCATE TABLE " . $this->wrapIdentifier($table);
+        return $this->connection->statement($sql);
+    }
+
+    public function optimizeTable(string $table): bool
+    {
+        return true;
+    }
+
     public function getViews(): array
     {
         return [];

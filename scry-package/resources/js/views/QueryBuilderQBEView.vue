@@ -26,12 +26,12 @@
     <!-- Builder Form -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
       <!-- Select Primary Table & Fields -->
-      <div class="scry-bg-card border scry-border rounded-xl p-4 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider scry-text-subtle mb-3">1. Select Main Table</h3>
+      <div class="scry-bg-card border scry-border rounded-xl p-4 shadow-sm space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider scry-text-subtle">1. Select Main Table & Columns</h3>
         <select
           v-model="selectedTable"
           @change="loadTableColumns"
-          class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main focus:outline-none mb-3"
+          class="w-full scry-bg-input border scry-border rounded p-2 text-xs font-mono scry-text-main focus:outline-none"
         >
           <option value="">-- Choose Table --</option>
           <option v-for="t in availableTables" :key="t.name" :value="t.name">{{ t.name }}</option>
@@ -39,7 +39,7 @@
 
         <div v-if="columns.length > 0">
           <label class="block text-xs font-semibold scry-text-muted mb-2">Select Columns (* for all)</label>
-          <div class="max-h-40 overflow-y-auto space-y-1 p-2 border scry-border rounded scry-bg-input">
+          <div class="max-h-36 overflow-y-auto space-y-1 p-2 border scry-border rounded scry-bg-input">
             <label class="flex items-center space-x-2 text-xs font-mono scry-text-main cursor-pointer">
               <input type="checkbox" v-model="selectAllCols" @change="toggleAllCols" />
               <span class="font-bold">* (All Columns)</span>
@@ -50,43 +50,97 @@
             </label>
           </div>
         </div>
-      </div>
 
-      <!-- Joins & Conditions -->
-      <div class="scry-bg-card border scry-border rounded-xl p-4 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider scry-text-subtle mb-3">2. Filter Conditions & Sort</h3>
-        
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold scry-text-muted mb-1">Filter Column</label>
-            <select v-model="filterCol" class="w-full scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
-              <option value="">-- No Filter --</option>
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Aggregate Function (Optional)</label>
+          <div class="flex space-x-2">
+            <select v-model="aggregateFunc" class="w-1/2 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
+              <option value="">None</option>
+              <option value="COUNT">COUNT()</option>
+              <option value="SUM">SUM()</option>
+              <option value="AVG">AVG()</option>
+              <option value="MIN">MIN()</option>
+              <option value="MAX">MAX()</option>
+            </select>
+            <select v-model="aggregateCol" :disabled="!aggregateFunc || aggregateFunc === 'COUNT'" class="w-1/2 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main disabled:opacity-50">
+              <option value="*">*</option>
               <option v-for="col in columns" :key="col.name" :value="col.name">{{ col.name }}</option>
             </select>
           </div>
+        </div>
+      </div>
 
-          <div v-if="filterCol" class="flex space-x-2">
-            <select v-model="filterOp" class="w-1/3 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
+      <!-- Joins & Conditions -->
+      <div class="scry-bg-card border scry-border rounded-xl p-4 shadow-sm space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider scry-text-subtle">2. Joins & Filter Conditions</h3>
+
+        <!-- Multi-table JOIN -->
+        <div class="p-2.5 border scry-border rounded-lg scry-bg-input space-y-2 text-xs font-mono">
+          <span class="font-bold scry-accent-text">Table JOIN (Optional)</span>
+          <div class="grid grid-cols-2 gap-2">
+            <select v-model="joinType" class="scry-bg-input border scry-border rounded p-1 text-xs">
+              <option value="INNER JOIN">INNER JOIN</option>
+              <option value="LEFT JOIN">LEFT JOIN</option>
+              <option value="RIGHT JOIN">RIGHT JOIN</option>
+            </select>
+            <select v-model="joinTable" class="scry-bg-input border scry-border rounded p-1 text-xs">
+              <option value="">-- Target Table --</option>
+              <option v-for="t in availableTables.filter(t => t.name !== selectedTable)" :key="t.name" :value="t.name">{{ t.name }}</option>
+            </select>
+          </div>
+          <div v-if="joinTable" class="flex items-center space-x-1">
+            <span class="text-[10px] scry-text-muted">ON</span>
+            <input v-model="joinLocalCol" placeholder="main_col" class="w-1/2 border scry-border rounded p-1 text-xs scry-bg-input" />
+            <span class="text-[10px] scry-text-muted">=</span>
+            <input v-model="joinForeignCol" placeholder="foreign_col" class="w-1/2 border scry-border rounded p-1 text-xs scry-bg-input" />
+          </div>
+        </div>
+
+        <!-- Filter -->
+        <div>
+          <label class="block text-xs font-semibold scry-text-muted mb-1">Filter WHERE Condition</label>
+          <div class="flex space-x-2">
+            <select v-model="filterCol" class="w-1/3 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
+              <option value="">-- No Filter --</option>
+              <option v-for="col in columns" :key="col.name" :value="col.name">{{ col.name }}</option>
+            </select>
+            <select v-if="filterCol" v-model="filterOp" class="w-1/4 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
               <option value="=">=</option>
               <option value="LIKE">LIKE</option>
               <option value=">">&gt;</option>
               <option value="<">&lt;</option>
             </select>
-            <input v-model="filterVal" type="text" placeholder="Value..." class="w-2/3 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main" />
+            <input v-if="filterCol" v-model="filterVal" type="text" placeholder="Value..." class="w-5/12 scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main" />
           </div>
+        </div>
 
+        <!-- GROUP BY & ORDER BY -->
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
           <div>
-            <label class="block text-xs font-semibold scry-text-muted mb-1">Sort By Column</label>
-            <select v-model="sortCol" class="w-full scry-bg-input border scry-border rounded p-1.5 text-xs font-mono scry-text-main">
-              <option value="">-- Default --</option>
+            <label class="block font-semibold scry-text-muted mb-1">GROUP BY</label>
+            <select v-model="groupByCol" class="w-full scry-bg-input border scry-border rounded p-1 text-xs">
+              <option value="">-- None --</option>
               <option v-for="col in columns" :key="col.name" :value="col.name">{{ col.name }}</option>
             </select>
           </div>
-
-          <div class="flex items-center space-x-2">
-            <span class="text-xs scry-text-muted">Limit:</span>
-            <input v-model.number="limit" type="number" min="1" max="1000" class="w-20 scry-bg-input border scry-border rounded p-1 text-xs font-mono scry-text-main" />
+          <div>
+            <label class="block font-semibold scry-text-muted mb-1">ORDER BY</label>
+            <div class="flex space-x-1">
+              <select v-model="sortCol" class="w-2/3 scry-bg-input border scry-border rounded p-1 text-xs">
+                <option value="">-- None --</option>
+                <option v-for="col in columns" :key="col.name" :value="col.name">{{ col.name }}</option>
+              </select>
+              <select v-if="sortCol" v-model="sortDir" class="w-1/3 scry-bg-input border scry-border rounded p-1 text-xs">
+                <option value="ASC">ASC</option>
+                <option value="DESC">DESC</option>
+              </select>
+            </div>
           </div>
+        </div>
+
+        <div class="flex items-center space-x-2 pt-1">
+          <span class="text-xs scry-text-muted">Limit:</span>
+          <input v-model.number="limit" type="number" min="1" max="1000" class="w-20 scry-bg-input border scry-border rounded p-1 text-xs font-mono scry-text-main" />
         </div>
       </div>
 
@@ -94,7 +148,7 @@
       <div class="scry-bg-card border scry-border rounded-xl p-4 shadow-sm flex flex-col justify-between">
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider scry-text-subtle mb-3">3. Live SQL Query Preview</h3>
-          <div class="p-3 rounded-lg scry-bg-input border scry-border font-mono text-xs scry-accent-text whitespace-pre-wrap">
+          <div class="p-3 rounded-lg scry-bg-input border scry-border font-mono text-xs scry-accent-text whitespace-pre-wrap leading-relaxed">
             {{ generatedSql }}
           </div>
         </div>
@@ -141,11 +195,21 @@ const columns = ref([]);
 const selectedColumns = ref([]);
 const selectAllCols = ref(true);
 
+const aggregateFunc = ref('');
+const aggregateCol = ref('*');
+
+const joinType = ref('INNER JOIN');
+const joinTable = ref('');
+const joinLocalCol = ref('');
+const joinForeignCol = ref('');
+
 const filterCol = ref('');
 const filterOp = ref('=');
 const filterVal = ref('');
 
+const groupByCol = ref('');
 const sortCol = ref('');
+const sortDir = ref('ASC');
 const limit = ref(25);
 
 const executing = ref(false);
@@ -195,19 +259,34 @@ const toggleAllCols = () => {
 const generatedSql = computed(() => {
   if (!selectedTable.value) return '-- Select a table to generate query';
 
-  const colList = selectAllCols.value || selectedColumns.value.length === columns.value.length || selectedColumns.value.length === 0
-    ? '*'
-    : selectedColumns.value.join(', ');
+  let selectClause = '*';
+  if (aggregateFunc.value) {
+    const aggTarget = aggregateFunc.value === 'COUNT' ? '*' : (aggregateCol.value || '*');
+    selectClause = `${aggregateFunc.value}(${aggTarget}) AS total_result`;
+    if (groupByCol.value) {
+      selectClause = `${groupByCol.value}, ${selectClause}`;
+    }
+  } else if (!selectAllCols.value && selectedColumns.value.length > 0) {
+    selectClause = selectedColumns.value.map(c => `${selectedTable.value}.${c}`).join(', ');
+  }
 
-  let sql = `SELECT ${colList} FROM ${selectedTable.value}`;
+  let sql = `SELECT ${selectClause} FROM ${selectedTable.value}`;
+
+  if (joinTable.value && joinLocalCol.value && joinForeignCol.value) {
+    sql += ` ${joinType.value} ${joinTable.value} ON ${selectedTable.value}.${joinLocalCol.value} = ${joinTable.value}.${joinForeignCol.value}`;
+  }
 
   if (filterCol.value && filterVal.value) {
     const valEscaped = filterOp.value === 'LIKE' ? `'%${filterVal.value}%'` : `'${filterVal.value}'`;
-    sql += ` WHERE ${filterCol.value} ${filterOp.value} ${valEscaped}`;
+    sql += ` WHERE ${selectedTable.value}.${filterCol.value} ${filterOp.value} ${valEscaped}`;
+  }
+
+  if (groupByCol.value) {
+    sql += ` GROUP BY ${selectedTable.value}.${groupByCol.value}`;
   }
 
   if (sortCol.value) {
-    sql += ` ORDER BY ${sortCol.value} ASC`;
+    sql += ` ORDER BY ${selectedTable.value}.${sortCol.value} ${sortDir.value}`;
   }
 
   if (limit.value) {

@@ -84,11 +84,28 @@
 
             <div class="flex space-x-2">
               <button
+                @click="formatSql"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+                title="Format & Prettify SQL"
+              >
+                Format SQL
+              </button>
+
+              <button
                 @click="query = ''"
-                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border scry-border scry-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
               >
                 Clear
               </button>
+
+              <button
+                @click="runExplainQuery"
+                :disabled="executing || !query.trim()"
+                class="px-3.5 py-1.5 text-xs font-semibold rounded-lg scry-badge-sulphur disabled:opacity-50 transition-colors cursor-pointer shadow-sm focus:outline-none"
+              >
+                EXPLAIN
+              </button>
+
               <button
                 @click="runQuery"
                 :disabled="executing || !query.trim()"
@@ -319,6 +336,26 @@ const onSnippetSelect = (event) => {
   if (idx !== '' && dbSnippets.value[idx]) {
     query.value = dbSnippets.value[idx].sql;
   }
+};
+
+const formatSql = () => {
+  if (!query.value.trim()) return;
+  let s = query.value.trim();
+
+  const keywords = ['select', 'from', 'where', 'left join', 'right join', 'inner join', 'join', 'group by', 'order by', 'limit', 'offset', 'having', 'insert into', 'values', 'update', 'set', 'delete from'];
+  for (const kw of keywords) {
+    const reg = new RegExp(`\\b${kw}\\b`, 'gi');
+    s = s.replace(reg, (match) => `\n${match.toUpperCase()}`);
+  }
+  query.value = s.trim();
+};
+
+const runExplainQuery = async () => {
+  if (!query.value.trim()) return;
+  const original = query.value.trim();
+  const explainSql = original.toUpperCase().startsWith('EXPLAIN') ? original : `EXPLAIN ${original}`;
+  query.value = explainSql;
+  await runQuery();
 };
 
 const runQuery = async () => {

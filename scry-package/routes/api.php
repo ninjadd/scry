@@ -20,6 +20,8 @@ Route::group([
     // Server Stats & Tuning
     Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
     Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions'])->name('server.tuning');
+    Route::get('/server/slow-queries', [ApiController::class, 'slowQueries'])->name('server.slow_queries');
+    Route::post('/server/kill-process', [ApiController::class, 'killProcess'])->name('server.kill_process');
 
     // Routines & Triggers
     Route::get('/views', [ApiController::class, 'views'])->name('views');
@@ -44,6 +46,8 @@ Route::group([
     Route::post('/tables/copy', [ApiController::class, 'copyTable'])->name('tables.copy');
     Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable'])->name('tables.rename');
     Route::delete('/tables/{table}', [ApiController::class, 'dropTable'])->name('tables.drop');
+    Route::post('/tables/{table}/truncate', [ApiController::class, 'truncateTable'])->name('tables.truncate');
+    Route::post('/tables/{table}/optimize', [ApiController::class, 'optimizeTable'])->name('tables.optimize');
 
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');

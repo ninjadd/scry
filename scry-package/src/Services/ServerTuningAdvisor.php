@@ -108,4 +108,91 @@ class ServerTuningAdvisor
             'suggestions' => $suggestions,
         ];
     }
+
+    /**
+     * Get active processes / slow queries.
+     */
+    public function getSlowQueries(?string $connectionName = null): array
+    {
+        $connectionName = $connectionName ?? config('database.default');
+        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connection = $this->dbManager->connection($connectionName);
+
+        $processes = [];
+
+        if (in_array($driver, ['mysql', 'mariadb'])) {
+            try {
+                $raw = $connection->select("SHOW FULL PROCESSLIST;");
+                foreach ($raw as $r) {
+                    $arr = (array)$r;
+                    $processes[] = [
+                        'pid' => $arr['Id'] ?? $arr['id'] ?? 0,
+                        'user' => $arr['User'] ?? $arr['user'] ?? 'unknown',
+                        'host' => $arr['Host'] ?? $arr['host'] ?? '',
+                        'db' => $arr['db'] ?? $arr['DB'] ?? '',
+                        'command' => $arr['Command'] ?? $arr['command'] ?? '',
+                        'time' => (int)($arr['Time'] ?? $arr['time'] ?? 0),
+                        'state' => $arr['State'] ?? $arr['state'] ?? '',
+                        'info' => $arr['Info'] ?? $arr['info'] ?? '',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+        } elseif ($driver === 'pgsql') {
+            try {
+                $raw = $connection->select("
+                    SELECT pid, usename AS user, client_addr AS host, datname AS db, state,
+                           EXTRACT(EPOCH FROM (now() - query_start))::integer AS time,
+                           query AS info
+                    FROM pg_stat_activity
+                    WHERE state != 'idle'
+                    ORDER BY query_start ASC
+                ");
+                foreach ($raw as $r) {
+                    $arr = (array)$r;
+                    $processes[] = [
+                        'pid' => $arr['pid'] ?? 0,
+                        'user' => $arr['user'] ?? 'unknown',
+                        'host' => (string)($arr['host'] ?? 'local'),
+                        'db' => $arr['db'] ?? '',
+                        'command' => 'Query',
+                        'time' => (int)($arr['time'] ?? 0),
+                        'state' => $arr['state'] ?? '',
+                        'info' => $arr['info'] ?? '',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+        }
+
+        return [
+            'driver' => $driver,
+            'processes' => $processes,
+        ];
+    }
+
+    /**
+     * Terminate / Kill a database process by PID.
+     */
+    public function killProcess(int $pid, ?string $connectionName = null): array
+    {
+        $connectionName = $connectionName ?? config('database.default');
+        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connection = $this->dbManager->connection($connectionName);
+
+        if (in_array($driver, ['mysql', 'mariadb'])) {
+            $connection->statement("KILL {$pid};");
+        } elseif ($driver === 'pgsql') {
+            $connection->select("SELECT pg_terminate_backend({$pid});");
+        } else {
+            throw new \InvalidArgumentException("Process termination is not supported for {$driver}.");
+        }
+
+        return [
+            'success' => true,
+            'message' => "Process {$pid} terminated successfully.",
+        ];
+    }
 }

@@ -295,6 +295,12 @@ class MysqlInspector extends AbstractInspector
         }
     }
 
+    public function optimizeTable(string $table): bool
+    {
+        $sql = "OPTIMIZE TABLE " . $this->wrapIdentifier($table);
+        return $this->connection->statement($sql);
+    }
+
     protected function wrapIdentifier(string $name): string
     {
         return '`' . str_replace('`', '``', $name) . '`';
