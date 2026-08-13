@@ -59,6 +59,21 @@ class SeedAllDatabasesCommand extends Command
                     }
                 }
 
+                // Ensure SQL Server database exists if connection is sqlsrv
+                if ($conn === 'sqlsrv') {
+                    try {
+                        config(['database.connections.sqlsrv_temp' => array_merge(
+                            config('database.connections.sqlsrv'),
+                            ['database' => 'master']
+                        )]);
+                        $dbName = config('database.connections.sqlsrv.database', 'scry_sql_db');
+                        DB::connection('sqlsrv_temp')->statement("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = N'{$dbName}') CREATE DATABASE [{$dbName}];");
+                        $this->info("Ensured SQL Server database [{$dbName}] exists.");
+                    } catch (\Throwable $e) {
+                        $this->warn("SQL Server database creation check: " . $e->getMessage());
+                    }
+                }
+
                 // Test connection
                 DB::connection($conn)->getPdo();
 

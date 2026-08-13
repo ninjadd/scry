@@ -25,6 +25,11 @@ RUN docker-php-ext-install \
     zip \
     intl
 
+# Install SQL Server PECL drivers & configure ODBC driver
+RUN pecl install pdo_sqlsrv sqlsrv && \
+    docker-php-ext-enable pdo_sqlsrv sqlsrv && \
+    printf '[ODBC Driver 18 for SQL Server]\nDescription=FreeTDS Driver for SQL Server\nDriver=/usr/lib/libtdsodbc.so\nSetup=/usr/lib/libtdsodbc.so\nUsageCount=1\n\n[ODBC Driver 17 for SQL Server]\nDescription=FreeTDS Driver for SQL Server\nDriver=/usr/lib/libtdsodbc.so\nSetup=/usr/lib/libtdsodbc.so\nUsageCount=1\n' > /etc/odbcinst.ini
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
