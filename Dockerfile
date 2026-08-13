@@ -1,4 +1,4 @@
-FROM php:8.3-cli-alpine
+FROM php:8.4-cli-alpine
 
 # Install system dependencies & PostgreSQL / MySQL / SQLite / SQL Server client headers
 RUN apk add --no-cache \
