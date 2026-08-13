@@ -167,7 +167,13 @@ scry/ (Workspace Root)
 docker-compose up -d --build
 ```
 
-### 2. Run Migrations and Seed Both Databases
+### 2. Install Dependencies & Publish Assets
+```bash
+docker exec -w /var/www/html/dummy-app scry_dummy_app composer install
+docker exec -w /var/www/html/dummy-app scry_dummy_app php artisan vendor:publish --tag=scry-assets --force
+```
+
+### 3. Run Migrations and Seed Both Databases
 ```bash
 # PostgreSQL Database
 docker exec -w /var/www/html/dummy-app scry_dummy_app php artisan migrate:fresh --database=pgsql --seed --force
@@ -176,7 +182,7 @@ docker exec -w /var/www/html/dummy-app scry_dummy_app php artisan migrate:fresh 
 docker exec -w /var/www/html/dummy-app scry_dummy_app php artisan migrate:fresh --database=mysql --seed --force
 ```
 
-### 3. Access Dashboard
+### 4. Access Dashboard
 Open **[http://127.0.0.1:8000/scry](http://127.0.0.1:8000/scry)** in your browser.
 
 ---

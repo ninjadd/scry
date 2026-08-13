@@ -120,7 +120,7 @@
                 class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
                 :class="$route.name === 'users' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
               >
-                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 435v-1a4 4 0 00-4-4H5a4 4 0 00-4 4v1fM15 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 User Privileges
               </router-link>
               <router-link

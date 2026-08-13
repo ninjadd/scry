@@ -28,6 +28,11 @@
     "config": {
         "sort-packages": true
     },
+    "scripts": {
+        "post-autoload-dump": [
+            "@php artisan vendor:publish --tag=scry-assets --force --quiet"
+        ]
+    },
     "minimum-stability": "dev",
     "prefer-stable": true
 }
