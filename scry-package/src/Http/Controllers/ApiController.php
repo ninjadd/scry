@@ -548,7 +548,10 @@ class ApiController extends Controller
 
         try {
             $inspector = $this->manager->forConnection($connection);
-            return response()->json($inspector->getServerStats());
+            $stats = $inspector->getServerStats();
+            $stats['available_connections'] = array_keys(config('database.connections', []));
+
+            return response()->json($stats);
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
         }

@@ -3,7 +3,7 @@ import { ref } from 'vue';
 
 export const useConnectionStore = defineStore('connection', () => {
   const currentConnection = ref(localStorage.getItem('scry-connection') || 'pgsql');
-  const availableConnections = ref(['pgsql', 'mysql']);
+  const availableConnections = ref(['pgsql', 'mysql', 'mariadb', 'sqlite', 'sqlsrv']);
   const driver = ref('pgsql');
   const serverStats = ref(null);
   const loadingStats = ref(false);
@@ -44,8 +44,12 @@ export const useConnectionStore = defineStore('connection', () => {
     try {
       const res = await scryFetch('/server/stats');
       if (res.ok) {
-        serverStats.value = await res.json();
-        driver.value = serverStats.value.driver || driver.value;
+        const data = await res.json();
+        serverStats.value = data;
+        driver.value = data.driver || driver.value;
+        if (data.available_connections) {
+          setAvailableConnections(data.available_connections);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch server stats:', err);
