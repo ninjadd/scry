@@ -36,5 +36,21 @@ class DatabaseSeeder extends Seeder
             $randomTags = $tags->random(rand(1, 4))->pluck('id')->toArray();
             $post->tags()->attach($randomTags);
         }
+
+        // 6. Seed 35 sample campaigns
+        $campaignVariants = ['Organic Growth', 'Custom', 'Local SEO', 'Purchases'];
+        for ($i = 1; $i <= 35; $i++) {
+            \DB::table('campaigns')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'account_id' => (string) \Illuminate\Support\Str::uuid(),
+                'service_id' => (string) \Illuminate\Support\Str::uuid(),
+                'variant' => $campaignVariants[$i % 4],
+                'title' => "Social Media - Organic Growth | Digital Aspect #{$i}",
+                'name' => "Social Media - Organic Growth | Digital Aspect #{$i}",
+                'description' => $i % 3 === 0 ? "This campaign was seeded for testing purposes." : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }
