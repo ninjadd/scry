@@ -34,8 +34,12 @@ export const useConnectionStore = defineStore('connection', () => {
   };
 
   const setAvailableConnections = (conns) => {
-    if (conns && Array.isArray(conns)) {
+    if (conns && Array.isArray(conns) && conns.length > 0) {
       availableConnections.value = conns;
+      if (!conns.includes(currentConnection.value)) {
+        currentConnection.value = conns[0];
+        localStorage.setItem('scry-connection', conns[0]);
+      }
     }
   };
 

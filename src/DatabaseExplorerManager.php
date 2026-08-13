@@ -22,10 +22,66 @@ class DatabaseExplorerManager extends Manager
     public function getDefaultDriver(): string
     {
         $connectionName = $this->container['config']->get('scry.connection')
-            ?? $this->container['config']->get('database-manager.connection')
             ?? $this->container['config']->get('database.default');
 
         return $this->getDriverForConnection($connectionName);
+    }
+
+    /**
+     * Get list of database connections configured and currently reachable/usable.
+     *
+     * @return array
+     */
+    public function getAvailableConnections(): array
+    {
+        $allConnections = array_keys($this->container['config']->get('database.connections', []));
+        $usable = [];
+
+        foreach ($allConnections as $name) {
+            try {
+                $this->getDriverForConnection($name);
+                $config = $this->container['config']->get("database.connections.{$name}", []);
+                $driver = $config['driver'] ?? '';
+
+                if (in_array($driver, ['sqlite', 'sqlite3'])) {
+                    $database = $config['database'] ?? '';
+                    if ($database !== ':memory:' && !empty($database) && !file_exists($database)) {
+                        continue;
+                    }
+                } else {
+                    $host = $config['host'] ?? null;
+                    $port = $config['port'] ?? match ($driver) {
+                        'pgsql', 'postgres' => 5432,
+                        'mysql', 'mariadb' => 3306,
+                        'sqlsrv', 'mssql' => 1433,
+                        default => null,
+                    };
+
+                    if ($host && $port) {
+                        $fp = @fsockopen($host, (int) $port, $errno, $errstr, 0.2);
+                        if (!$fp) {
+                            continue;
+                        }
+                        fclose($fp);
+                    }
+                }
+
+                $connection = $this->container->make(LaravelDatabaseManager::class)->connection($name);
+                $connection->getPdo();
+                $usable[] = $name;
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        if (empty($usable)) {
+            $default = $this->container['config']->get('database.default');
+            if ($default) {
+                $usable[] = $default;
+            }
+        }
+
+        return array_values(array_unique($usable));
     }
 
     /**
@@ -50,7 +106,6 @@ class DatabaseExplorerManager extends Manager
     {
         $connectionName = $connectionName
             ?? $this->container['config']->get('scry.connection')
-            ?? $this->container['config']->get('database-manager.connection')
             ?? $this->container['config']->get('database.default');
 
         $driverName = $this->getDriverForConnection($connectionName);

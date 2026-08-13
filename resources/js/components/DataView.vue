@@ -96,22 +96,22 @@
     </div>
 
     <!-- Pagination Footer -->
-    <div v-if="meta.total" class="p-4 border-t scry-border scry-bg-header flex items-center justify-between text-xs scry-text-muted font-mono">
+    <div v-if="meta && meta.total !== undefined" class="p-4 border-t scry-border scry-bg-header flex items-center justify-between text-xs scry-text-muted font-mono">
       <div>
-        Showing page <span class="scry-text-main font-bold">{{ meta.page }}</span> of <span class="scry-text-main font-bold">{{ meta.last_page }}</span> ({{ meta.total.toLocaleString() }} records total)
+        Showing page <span class="scry-text-main font-bold">{{ meta.page || meta.current_page || 1 }}</span> of <span class="scry-text-main font-bold">{{ meta.last_page || 1 }}</span> ({{ (meta.total || 0).toLocaleString() }} records total)
       </div>
 
       <div class="flex space-x-2">
         <button
-          :disabled="meta.page <= 1"
-          @click="changePage(meta.page - 1)"
+          :disabled="(meta.page || meta.current_page || 1) <= 1"
+          @click="changePage((meta.page || meta.current_page || 1) - 1)"
           class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer"
         >
           Previous
         </button>
         <button
-          :disabled="meta.page >= meta.last_page"
-          @click="changePage(meta.page + 1)"
+          :disabled="(meta.page || meta.current_page || 1) >= (meta.last_page || 1)"
+          @click="changePage((meta.page || meta.current_page || 1) + 1)"
           class="px-3 py-1.5 rounded scry-bg-card border scry-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 scry-text-main font-medium cursor-pointer"
         >
           Next
@@ -152,7 +152,13 @@ const fetchData = async () => {
     const res = await fetch(`${baseApiUrl}/tables/${props.table}/rows?${params}`);
     const data = await res.json();
     rows.value = data.data || [];
-    meta.value = data.meta || {};
+    meta.value = data.meta || {
+      page: data.current_page || data.page || 1,
+      current_page: data.current_page || data.page || 1,
+      per_page: data.per_page || 25,
+      total: data.total ?? 0,
+      last_page: data.last_page || 1,
+    };
   } catch (err) {
     console.error('Failed to load table data:', err);
   } finally {
