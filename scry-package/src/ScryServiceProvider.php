@@ -3,6 +3,7 @@
 namespace Scry;
 
 use Illuminate\Support\ServiceProvider;
+use Scry\Console\Commands\InstallCommand;
 
 class ScryServiceProvider extends ServiceProvider
 {
@@ -14,6 +15,7 @@ class ScryServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->registerResources();
         $this->registerPublishing();
+        $this->registerCommands();
     }
 
     /**
@@ -22,16 +24,19 @@ class ScryServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/database-manager.php',
+            __DIR__ . '/../config/scry.php',
             'scry'
         );
+
+        $this->app->singleton('scry', function () {
+            return new Scry();
+        });
 
         $this->app->singleton(DatabaseExplorerManager::class, function ($app) {
             return new DatabaseExplorerManager($app);
         });
 
         $this->app->alias(DatabaseExplorerManager::class, 'database-explorer');
-        $this->app->alias(DatabaseExplorerManager::class, 'scry');
     }
 
     /**
@@ -60,12 +65,24 @@ class ScryServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/database-manager.php' => config_path('scry.php'),
+                __DIR__ . '/../config/scry.php' => config_path('scry.php'),
             ], 'scry-config');
 
             $this->publishes([
                 __DIR__ . '/../resources/dist' => public_path('vendor/scry'),
             ], 'scry-assets');
+        }
+    }
+
+    /**
+     * Register the package console commands.
+     */
+    protected function registerCommands(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                InstallCommand::class,
+            ]);
         }
     }
 }

@@ -2,8 +2,11 @@
 /node_modules
 .env
 .DS_Store
+.phpunit.result.cache
+*.phpunit.result.cache
 scry-package/node_modules
 scry-package/vendor
+scry-package/.phpunit.result.cache
 dummy-app/vendor
 dummy-app/public/vendor
 dummy-app/.env
