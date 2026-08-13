@@ -47,12 +47,21 @@ abstract class AbstractInspector implements DatabaseInspector
 
         $items = $query->forPage($page, $perPage)->get()->toArray();
 
+        $lastPage = (int) ceil($total / max(1, $perPage));
+
         return [
             'table' => $table,
             'current_page' => $page,
             'per_page' => $perPage,
             'total' => $total,
-            'last_page' => (int) ceil($total / max(1, $perPage)),
+            'last_page' => $lastPage,
+            'meta' => [
+                'page' => $page,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => $lastPage,
+            ],
             'data' => $items,
         ];
     }

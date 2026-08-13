@@ -28,6 +28,63 @@ class DatabaseExplorerManager extends Manager
     }
 
     /**
+     * Get list of database connections configured and currently reachable/usable.
+     *
+     * @return array
+     */
+    public function getAvailableConnections(): array
+    {
+        $allConnections = array_keys($this->container['config']->get('database.connections', []));
+        $usable = [];
+
+        foreach ($allConnections as $name) {
+            try {
+                $this->getDriverForConnection($name);
+                $config = $this->container['config']->get("database.connections.{$name}", []);
+                $driver = $config['driver'] ?? '';
+
+                if (in_array($driver, ['sqlite', 'sqlite3'])) {
+                    $database = $config['database'] ?? '';
+                    if ($database !== ':memory:' && !empty($database) && !file_exists($database)) {
+                        continue;
+                    }
+                } else {
+                    $host = $config['host'] ?? null;
+                    $port = $config['port'] ?? match ($driver) {
+                        'pgsql', 'postgres' => 5432,
+                        'mysql', 'mariadb' => 3306,
+                        'sqlsrv', 'mssql' => 1433,
+                        default => null,
+                    };
+
+                    if ($host && $port) {
+                        $fp = @fsockopen($host, (int) $port, $errno, $errstr, 0.2);
+                        if (!$fp) {
+                            continue;
+                        }
+                        fclose($fp);
+                    }
+                }
+
+                $connection = $this->container->make(LaravelDatabaseManager::class)->connection($name);
+                $connection->getPdo();
+                $usable[] = $name;
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        if (empty($usable)) {
+            $default = $this->container['config']->get('database.default');
+            if ($default) {
+                $usable[] = $default;
+            }
+        }
+
+        return array_values(array_unique($usable));
+    }
+
+    /**
      * Resolve DatabaseInspector instance for a specific connection name.
      * Defaults to the host application's default connection if null.
      *

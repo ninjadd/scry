@@ -549,7 +549,7 @@ class ApiController extends Controller
         try {
             $inspector = $this->manager->forConnection($connection);
             $stats = $inspector->getServerStats();
-            $stats['available_connections'] = array_keys(config('database.connections', []));
+            $stats['available_connections'] = $this->manager->getAvailableConnections();
 
             return response()->json($stats);
         } catch (UnsupportedDriverException $e) {
@@ -611,16 +611,10 @@ class ApiController extends Controller
             }
 
             switch ($format) {
-                case 'doc':
-                case 'word':
-                    $content = $this->exportService->exportWord($table, $rows);
-                    $contentType = 'application/msword';
-                    $filename = "{$table}_export.doc";
-                    break;
-                case 'odt':
-                    $content = $this->exportService->exportOdt($table, $rows);
-                    $contentType = 'application/vnd.oasis.opendocument.text';
-                    $filename = "{$table}_export.odt";
+                case 'csv':
+                    $content = $this->exportService->exportCsv($rows);
+                    $contentType = 'text/csv';
+                    $filename = "{$table}_export.csv";
                     break;
                 case 'sql':
                     $content = $this->exportService->exportSql($table, $rows, $driver);
@@ -631,16 +625,6 @@ class ApiController extends Controller
                     $content = $this->exportService->exportXml($table, $rows);
                     $contentType = 'application/xml';
                     $filename = "{$table}_export.xml";
-                    break;
-                case 'pdf':
-                    $content = $this->exportService->exportPdf($table, $rows);
-                    $contentType = 'application/pdf';
-                    $filename = "{$table}_export.pdf";
-                    break;
-                case 'latex':
-                    $content = $this->exportService->exportLatex($table, $rows);
-                    $contentType = 'text/plain';
-                    $filename = "{$table}_export.tex";
                     break;
                 case 'json':
                 default:
@@ -677,7 +661,7 @@ class ApiController extends Controller
                 'connection' => $activeConn,
                 'driver' => $this->manager->getDriverForConnection($activeConn),
                 'tables' => $inspector->getTables(),
-                'available_connections' => array_keys(config('database.connections', [])),
+                'available_connections' => $this->manager->getAvailableConnections(),
             ]);
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);

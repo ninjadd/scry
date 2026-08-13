@@ -2,7 +2,7 @@
   <div class="flex-1 p-6 overflow-y-auto scry-bg-app">
     <div class="mb-6">
       <h2 class="text-2xl font-bold scry-text-main mb-1">Data Import & Multi-Format Export Tools</h2>
-      <p class="text-sm scry-text-muted">Import datasets or export schemas into CSV, SQL, XML, PDF, Word, OpenDocument, JSON, and LaTeX formats for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
+      <p class="text-sm scry-text-muted">Import datasets or export schemas into CSV, SQL, XML, and JSON formats for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -72,7 +72,7 @@
 
             <div v-if="exportTable" class="grid grid-cols-2 gap-2 pt-2">
               <a
-                v-for="fmt in ['csv', 'sql', 'xml', 'pdf', 'doc', 'odt', 'json', 'latex']"
+                v-for="fmt in ['csv', 'sql', 'xml', 'json']"
                 :key="fmt"
                 :href="`${store.baseApiUrl}/export/${exportTable}?format=${fmt}&connection=${store.currentConnection}`"
                 target="_blank"
