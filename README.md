@@ -1,5 +1,10 @@
 # Scry Database Manager (`scry/scry`)
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/scry/scry.svg?style=flat-square)](https://packagist.org/packages/scry/scry)
+[![Total Downloads](https://img.shields.io/packagist/dt/scry/scry.svg?style=flat-square)](https://packagist.org/packages/scry/scry)
+[![License](https://img.shields.io/packagist/l/scry/scry.svg?style=flat-square)](LICENSE)
+[![Laravel Support](https://img.shields.io/badge/Laravel-10_%7C_11_%7C_12_%7C_13%2B-red.svg?style=flat-square)](https://laravel.com)
+
 A modern, reactive, multi-database explorer and management suite for Laravel applications, inspired by Laravel Telescope and built with a decoupled Vue 3 SPA architecture. Out-of-the-box support for **PostgreSQL**, **MySQL**, **MariaDB**, **SQLite**, and **SQL Server**.
 
 ---
