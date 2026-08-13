@@ -197,6 +197,54 @@ const generateMermaidDefinition = (nodes) => {
   return def;
 };
 
+const makeSvgNodesDraggable = (svgEl) => {
+  if (!svgEl) return;
+
+  const nodeGroups = svgEl.querySelectorAll('g.node, g[id*="entity"], g.entityBox');
+  nodeGroups.forEach((node) => {
+    node.style.cursor = 'grab';
+
+    node.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      let isDragging = true;
+      node.style.cursor = 'grabbing';
+
+      let currentTransform = node.getAttribute('transform') || '';
+      let match = /translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/.exec(currentTransform);
+      let initialX = match ? parseFloat(match[1]) : 0;
+      let initialY = match ? parseFloat(match[2]) : 0;
+
+      let startX = e.clientX;
+      let startY = e.clientY;
+
+      const onMouseMove = (moveEvent) => {
+        if (!isDragging) return;
+        moveEvent.preventDefault();
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        const newX = initialX + dx;
+        const newY = initialY + dy;
+
+        if (match) {
+          node.setAttribute('transform', currentTransform.replace(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/, `translate(${newX}, ${newY})`));
+        } else {
+          node.setAttribute('transform', `translate(${newX}, ${newY}) ${currentTransform}`);
+        }
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        node.style.cursor = 'grab';
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  });
+};
+
 const renderDiagram = async () => {
   renderError.value = '';
   if (filteredNodes.value.length === 0) return;
@@ -207,6 +255,13 @@ const renderDiagram = async () => {
     const { svg } = await mermaid.render(id, def);
     if (diagramContainer.value) {
       diagramContainer.value.innerHTML = svg;
+      const svgEl = diagramContainer.value.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.overflow = 'visible';
+        svgEl.style.padding = '50px 25px 25px 25px';
+        svgEl.style.maxWidth = 'none';
+        makeSvgNodesDraggable(svgEl);
+      }
     }
   } catch (err) {
     console.error('Failed to render ERD diagram:', err);
@@ -267,36 +322,54 @@ const exportPng = () => {
     return;
   }
 
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
+  try {
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-
-  img.onload = () => {
     const bbox = svgEl.getBoundingClientRect();
-    const width = Math.max((bbox.width || 1200), 800) * 2;
-    const height = Math.max((bbox.height || 800), 600) * 2;
+    const width = Math.max(bbox.width || 1200, 1000);
+    const height = Math.max(bbox.height || 900, 800);
 
-    canvas.width = width;
-    canvas.height = height;
+    clone.setAttribute('width', width.toString());
+    clone.setAttribute('height', height.toString());
+    clone.style.backgroundColor = '#faf9f5';
 
-    ctx.fillStyle = '#faf9f5';
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 
-    URL.revokeObjectURL(url);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
 
-    const pngUrl = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = pngUrl;
-    a.download = `erd_${store.currentConnection}.png`;
-    a.click();
-  };
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(2, 2);
+      ctx.fillStyle = '#faf9f5';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
 
-  img.src = url;
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `erd_${store.currentConnection}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    img.onerror = (e) => {
+      console.error('PNG conversion error:', e);
+      alert('Could not convert SVG to PNG image.');
+    };
+
+    img.src = svgDataUrl;
+  } catch (err) {
+    console.error('Export PNG failed:', err);
+    alert('Failed to export PNG: ' + err.message);
+  }
 };
 
 onMounted(loadFullSchema);
