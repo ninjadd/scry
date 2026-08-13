@@ -11,20 +11,20 @@ A modern, reactive, multi-database explorer and management suite for Laravel app
 
 ---
 
-## ⚡ Key Features
+## Key Features
 
-- 🕸️ **Interactive ERD Schema Visualizer**: Entity-relationship diagram visualizer powered by Mermaid.js. Includes interactive canvas **Zoom In / Zoom Out**, **Mouse Wheel Zoom**, **Canvas Panning**, **Draggable Table Cards**, and **Sticky Foreign Key Arrows** that dynamically stretch as nodes move. Export diagrams as Mermaid code, SVG, or high-DPI PNG.
-- 🔌 **Smart Connection Switcher**: Probes TCP ports and SQLite files so the connection selector displays only active, reachable database connections on the dashboard and automatically falls back to live databases.
-- 📊 **Table Views & Pagination**: Complete pagination controls (`page`, `per_page`, record counts) rendered across all table data views.
-- 🛠️ **Query-by-Example (QBE) Builder**: Visually compose complex SQL queries with joins, WHERE filters, aggregations (`COUNT`, `SUM`, `AVG`), grouping, and sorting.
-- 💻 **Raw SQL Console**: SQL query editor with snippet library, bookmarking, execution timing, and formatted JSON output.
-- 📦 **Import & Export**: High-performance streaming exports (`CSV`, `SQL`, `XML`, `JSON`) and quote-aware transaction imports.
-- ⚡ **Server Tuning & Slow Query Diagnostics**: Real-time process monitor (`PROCESSLIST`), active session killer, and database configuration health advisor.
-- 🔍 **Global Database Search**: Cross-table `LIKE` search across all text columns and tables.
+- **Interactive ERD Schema Visualizer**: Entity-relationship diagram visualizer powered by Mermaid.js. Includes interactive canvas **Zoom In / Zoom Out**, **Mouse Wheel Zoom**, **Canvas Panning**, **Draggable Table Cards**, and **Sticky Foreign Key Arrows** that dynamically stretch as nodes move. Export diagrams as Mermaid code, SVG, or high-DPI PNG.
+- **Smart Connection Switcher**: Probes TCP ports and SQLite files so the connection selector displays only active, reachable database connections on the dashboard and automatically falls back to live databases.
+- **Table Views & Pagination**: Complete pagination controls (`page`, `per_page`, record counts) rendered across all table data views.
+- **Query-by-Example (QBE) Builder**: Visually compose complex SQL queries with joins, WHERE filters, aggregations (`COUNT`, `SUM`, `AVG`), grouping, and sorting.
+- **Raw SQL Console**: SQL query editor with snippet library, bookmarking, execution timing, and formatted JSON output.
+- **Import & Export**: High-performance streaming exports (`CSV`, `SQL`, `XML`, `JSON`) and quote-aware transaction imports.
+- **Server Tuning & Slow Query Diagnostics**: Real-time process monitor (`PROCESSLIST`), active session killer, and database configuration health advisor.
+- **Global Database Search**: Cross-table `LIKE` search across all text columns and tables.
 
 ---
 
-## 🚀 Installation
+## Installation
 
 Install the package via Composer:
 
@@ -39,11 +39,11 @@ php artisan vendor:publish --tag=scry-assets
 ```
 
 Visit the dashboard in your browser:
-👉 `http://your-app.test/scry`
+`http://your-app.test/scry`
 
 ---
 
-## 🎨 Seasons #63 Design System
+## Seasons #63 Design System
 
 Scry features a custom design system built around the curated **Seasons #63** color palette and clean typography.
 
@@ -62,7 +62,7 @@ Scry features a custom design system built around the curated **Seasons #63** co
 
 ---
 
-## 🧪 Testing & Development Stack
+## Testing & Development Stack
 
 ### Automated Unit & Feature Tests
 ```bash
@@ -81,7 +81,7 @@ php artisan scry:seed-all --fresh
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 scry/
@@ -106,7 +106,7 @@ scry/
 
 ---
 
-## 📄 License
+## License
 
 This package is open-sourced software licensed under the **[MIT License](LICENSE)**.
 
