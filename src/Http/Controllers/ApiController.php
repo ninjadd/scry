@@ -492,15 +492,27 @@ class ApiController extends Controller
 
     /**
      * GET /scry/api/search?q=...
+     * POST /scry/api/search/global
      */
     public function globalSearch(Request $request): JsonResponse
     {
-        $request->validate(['q' => 'required|string|min:1']);
-        $connection = $request->query('connection');
-        $term = $request->query('q');
+        $term = $request->input('q') ?? $request->input('term') ?? $request->query('q') ?? $request->query('term');
+        
+        if (empty($term) || !is_string($term)) {
+            return response()->json(['error' => 'Search term (q or term) is required.'], 422);
+        }
+
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $limit = (int) ($request->input('limit') ?? $request->query('limit', 10));
+        $tables = $request->input('tables') ?? ($request->query('tables') ? explode(',', $request->query('tables')) : []);
 
         try {
-            return response()->json($this->searchService->search($term, $connection));
+            $options = [
+                'per_table_limit' => $limit,
+                'tables' => is_array($tables) ? $tables : [],
+            ];
+
+            return response()->json($this->searchService->search($term, $connection, $options));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }

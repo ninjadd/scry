@@ -90,4 +90,15 @@ class ApiControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['tables', 'relationships', 'total_tables', 'total_relationships', 'connection']);
     }
+
+    public function test_post_global_search_endpoint(): void
+    {
+        $response = $this->postJson('/scry/api/search/global?connection=sqlite', [
+            'term' => 'Laptop',
+            'limit' => 5,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['term', 'results', 'total_matches', 'matching_tables_count']);
+    }
 }

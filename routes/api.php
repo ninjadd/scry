@@ -37,6 +37,8 @@ Route::group([
 
     // Global Search & Import/Export
     Route::get('/search', [ApiController::class, 'globalSearch'])->name('search');
+    Route::post('/search/global', [ApiController::class, 'globalSearch'])->name('search.global');
+    Route::get('/search/global', [ApiController::class, 'globalSearch'])->name('search.global.get');
     Route::post('/import', [ApiController::class, 'importFile'])->name('import');
     Route::get('/export/{table}', [ApiController::class, 'exportTable'])->name('export');
 
