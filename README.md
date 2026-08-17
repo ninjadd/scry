@@ -11,22 +11,62 @@
 
 ## Introduction
 
-**Scry** is a fast, reactive, Vue-powered database manager for Laravel applications. It provides dynamic schema introspection, raw SQL execution, and interactive ERD diagrams directly inside your local Laravel environment.
+**Scry** is a high-performance, reactive, Vue 3-powered database manager and visual workbench for Laravel applications. It brings full-featured MySQL Workbench and desktop-class database administration tools directly inside your browser.
 
-Designed as a modern alternative to legacy tools like phpMyAdmin or heavy desktop clients, Scry runs as an embedded package inside your application. It automatically detects configured database connections, giving developers an instant, friction-free GUI to inspect tables, debug queries, and analyze database structures without leaving their browser.
+Scry runs seamlessly as an embedded Laravel package. It dynamically inspects connections defined in `config/database.php` across **MySQL**, **MariaDB**, **PostgreSQL**, **SQLite**, and **SQL Server (`sqlsrv`)**, giving developers an immediate, zero-friction interface to inspect schemas, execute queries, design DDL blueprints, manage foreign keys, and monitor server health.
 
 ---
 
-## Features
+## Features & Workbench Capabilities
 
-- **Multi-Connection Support:** Seamlessly toggle between multiple database connections (PostgreSQL, MySQL, MariaDB, SQLite, and SQL Server) defined in your application.
-- **Vue SPA Frontend:** Snappy, single-page application built with modern reactive components, dark/light theme support, and responsive typography.
-- **Dynamic Schema Inspection:** Interactive Entity-Relationship Diagram (ERD) visualizer powered by Mermaid.js featuring canvas zooming, panning, draggable table nodes, dynamic foreign key arrows, and SVG/PNG exports.
-- **Raw SQL Console:** Powerful SQL editor with execution timing, query history, bookmarking, and formatted JSON/tabular output.
-- **Query-by-Example (QBE) Builder:** Visually compose complex SQL queries with joins, `WHERE` conditions, aggregations (`COUNT`, `SUM`, `AVG`), and custom sorting.
-- **Streaming Data Import & Export:** High-performance data exports (`CSV`, `SQL`, `XML`, `JSON`) and quote-aware SQL script imports within database transactions.
-- **Server Tuning & Process Monitor:** Live process listing (`PROCESSLIST`), active query cancellation, and automated health checks.
-- **Global Cross-Table Search:** Search across all text fields and tables simultaneously.
+### 1. Monaco SQL Console & Query Runner
+- **Monaco SQL Editor:** Syntax highlighting, code folding, auto-indentation, and shortcut execution (`Cmd+Enter` / `Ctrl+Enter`).
+- **Execution Timing & Metrics:** Real-time query duration measurement badge in milliseconds (`ms`) and affected row counts.
+- **Query History & Bookmarks:** Persistent execution history stack with timestamp search and reusable query bookmark drawers.
+- **Dual Result Viewer:** Toggle between an interactive sortable tabular data grid (with instant CSV export) and syntax-highlighted formatted JSON viewer.
+
+### 2. Visual Query-by-Example (QBE) Builder
+- **Visual Join Configurator:** Build multi-table queries with `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN`, and `FULL OUTER JOIN`.
+- **Filtering & Aggregations:** Drag-and-drop WHERE criteria with comparison operators (`=`, `!=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`) and aggregate functions (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`).
+- **Dialect-Aware Live SQL:** Real-time query generator with automatic identifier quoting (backticks for MySQL/MariaDB, double quotes for Postgres/SQLite, square brackets for SQL Server).
+- **Direct Navigation:** Execute queries directly in place or transfer them seamlessly to the SQL Console.
+
+### 3. Interactive Mermaid.js ERD Visualizer
+- **Automated Schema Relationship Map:** Driver-level foreign key and primary key extraction across all tables.
+- **Dynamic Canvas Controls:** Interactive zoom in/out, pan/drag canvas, table search filter, and draggable node positioning.
+- **Export Utilities:** Download diagrams directly as **SVG** or high-resolution **PNG**, or copy raw Mermaid.js syntax.
+
+### 4. Global Cross-Table Search
+- **Driver-Wide Column Scanning:** Automatically identifies `VARCHAR`, `TEXT`, `JSON`, `UUID`, and string columns across all tables.
+- **Memory-Safe Batch Querying:** Prevents memory exhaustion when scanning large database instances.
+- **Match Highlighting & Pagination:** Grouped table matches with per-table row counts and keyword highlighting.
+
+### 5. Server Process Monitor & Health Advisor
+- **Live Process Listing:** Inspect active threads and queries across all engines (`SHOW FULL PROCESSLIST`, `pg_stat_activity`, `sys.dm_exec_requests`).
+- **Safe Query Termination:** Cancel long-running threads (`KILL {pid}`, `pg_terminate_backend({pid})`) via confirmation modal.
+- **Connection Health & Polling:** Automated background health checks with response latency monitoring.
+- **Tuning Diagnostics:** Automated optimization suggestions for storage, indexing, and configuration.
+
+### 6. Streaming Data Import & Export
+- **Multi-Format Export:** High-performance streaming exports in `CSV`, `SQL Dump`, `XML`, and `JSON` formats.
+- **Transactional Imports:** Multi-statement `.sql` and `.csv` imports executed inside isolated database transactions (`DB::beginTransaction()` / `DB::rollBack()`) with precise statement failure reporting.
+
+### 7. Visual Table Designer & DDL Blueprint Manager
+- **Visual Column Designer:** Configure column names, data types, precision, nullability, auto-increments, and defaults.
+- **Index & Foreign Key Manager:** Create and drop secondary indexes, unique constraints, and cascading foreign keys.
+- **Safe Drop & Truncate:** Danger confirmation modals requiring explicit typed table confirmation to eliminate accidental data loss.
+
+---
+
+## Supported Database Drivers
+
+| Database Driver | Schema Introspection | Monaco SQL Console | QBE Builder | Mermaid ERD | Process Monitor | DDL / Alter Table |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **MySQL (8.0+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **MariaDB (10.4+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **PostgreSQL (12+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **SQLite (3.8+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **SQL Server (2019+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -38,14 +78,10 @@ Install the package via Composer:
 composer require scry/scry
 ```
 
----
-
-## Configuration
-
-Publish the pre-compiled Vue assets required for the single-page interface:
+Publish the pre-compiled Vue single-page application assets:
 
 ```bash
-php artisan vendor:publish --tag=scry-assets
+php artisan vendor:publish --tag=scry-assets --force
 ```
 
 Optionally publish the package configuration file to `config/scry.php`:
@@ -54,46 +90,47 @@ Optionally publish the package configuration file to `config/scry.php`:
 php artisan vendor:publish --tag=scry-config
 ```
 
-### Environment Restrictions
+---
 
-By default, Scry is locked down strictly to `local` and `testing` environments to prevent unauthorized access.
+## Quickstart & Local Verification
 
-You can configure the URI path and allowed environments via environment variables or inside `config/scry.php`:
+1. Start your local development server:
 
-```env
-SCRY_PATH=scry
+```bash
+php artisan serve
 ```
 
-In `config/scry.php`:
+2. Open your browser and navigate to:
 
-```php
-'allowed_environments' => [
-    'local',
-    'testing',
-],
+```
+http://localhost:8000/scry
+```
+
+3. Toggle between configured database connections in the top-right dropdown to inspect schemas, visualize ERDs, and run queries.
+
+---
+
+## Docker Compose Test Environment
+
+A multi-driver Docker Compose environment is bundled for integration testing across PostgreSQL, MySQL, MariaDB, and SQL Server:
+
+```bash
+# Start all database engines
+docker compose up -d
+
+# Run migrations and seed rich relational test data
+php artisan migrate:fresh --seed
 ```
 
 ---
 
-## Usage
-
-Once installed and assets are published, open your browser and navigate to:
-
-```
-http://your-app.test/scry
-```
-
-Use the top-navigation connection dropdown to toggle between database connections configured in your application's `config/database.php`. Scry automatically tests connection health and loads table schemas on demand.
-
----
-
-## Security
+## Security & Gate Authorization
 
 > [!CAUTION]
 > **STRICT SECURITY WARNING**
-> Scry provides administrative access to read schema definitions and execute raw SQL queries on your database. **Do not expose Scry in production environments without proper gate authorization.**
+> Scry provides administrative database access. By default, Scry is locked strictly to `local` and `testing` environments. Do not expose Scry in production environments without authorization gates.
 
-To authorize users in non-local environments, define a custom authorization callback using `Scry::auth()` inside your `AppServiceProvider` or `AuthServiceProvider`:
+To authorize users in non-local environments, define an authorization gate using `Scry::auth()` in your `AppServiceProvider`:
 
 ```php
 use Illuminate\Http\Request;
@@ -110,11 +147,15 @@ public function boot(): void
 
 ---
 
-## Contributing
+## Running Tests
 
-We welcome community contributions! While Scry includes built-in inspectors for PostgreSQL and MySQL, community support and Pull Requests are actively encouraged to refine and expand drivers for **SQLite** and **SQL Server** (`sqlsrv`).
+Run the automated test suite with PHPUnit:
 
-If you are interested in contributing schema introspection queries, extending driver interfaces, or improving the Vue frontend, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide.
+```bash
+composer test
+# or
+./vendor/bin/phpunit
+```
 
 ---
 
