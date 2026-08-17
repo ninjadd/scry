@@ -21,6 +21,7 @@ const routes = [
   { path: '/tables/:table/data', name: 'data', component: DataGridView, props: true },
   { path: '/tables/:table/schema', name: 'schema', component: SchemaView, props: true },
   { path: '/qbe', name: 'qbe', component: QueryBuilderQBEView },
+  { path: '/query-builder', name: 'query-builder', component: QueryBuilderQBEView },
   { path: '/erd', name: 'erd', component: SchemaVisualizerERDView },
   { path: '/query', name: 'query', component: QueryRunnerView },
   { path: '/console', name: 'console', component: QueryRunnerView },
