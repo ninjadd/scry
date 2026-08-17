@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "mermaid": "^11.16.1",
+    "monaco-editor": "^0.52.2",
     "pinia": "^2.3.1"
   }
 }

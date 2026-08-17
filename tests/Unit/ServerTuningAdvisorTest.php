@@ -32,4 +32,13 @@ class ServerTuningAdvisorTest extends TestCase
         $this->assertArrayHasKey('processes', $res);
         $this->assertIsArray($res['processes']);
     }
+
+    public function test_check_health_returns_status(): void
+    {
+        $res = $this->advisor->checkHealth('sqlite');
+
+        $this->assertEquals('healthy', $res['status']);
+        $this->assertEquals('sqlite', $res['driver']);
+        $this->assertArrayHasKey('latency_ms', $res);
+    }
 }

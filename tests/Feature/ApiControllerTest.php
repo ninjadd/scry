@@ -82,4 +82,82 @@ class ApiControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['term', 'results']);
     }
+
+    public function test_get_schema_relationships_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/schema/relationships?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['tables', 'relationships', 'total_tables', 'total_relationships', 'connection']);
+    }
+
+    public function test_post_global_search_endpoint(): void
+    {
+        $response = $this->postJson('/scry/api/search/global?connection=sqlite', [
+            'term' => 'Laptop',
+            'limit' => 5,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['term', 'results', 'total_matches', 'matching_tables_count']);
+    }
+
+    public function test_get_server_processes_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/server/processes?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['driver', 'processes']);
+    }
+
+    public function test_get_server_health_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/server/health?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['status', 'connection', 'driver', 'latency_ms']);
+    }
+
+    public function test_create_and_alter_table_endpoints(): void
+    {
+        // 1. Create table via /scry/api/schema/tables
+        $createRes = $this->postJson('/scry/api/schema/tables?connection=sqlite', [
+            'table_name' => 'api_orders',
+            'columns' => [
+                ['name' => 'id', 'type' => 'INTEGER', 'nullable' => false, 'is_primary' => true, 'auto_increment' => true],
+                ['name' => 'order_number', 'type' => 'VARCHAR(100)', 'nullable' => false],
+            ],
+        ]);
+
+        $createRes->assertStatus(201)
+            ->assertJsonStructure(['success', 'message']);
+
+        // 2. Alter table by adding a column
+        $alterRes = $this->putJson('/scry/api/schema/tables/api_orders?connection=sqlite', [
+            'add_columns' => [
+                ['name' => 'total_amount', 'type' => 'DECIMAL(10,2)', 'nullable' => true],
+            ],
+        ]);
+
+        $alterRes->assertStatus(200)
+            ->assertJsonStructure(['success', 'message', 'statements_executed']);
+
+        // 3. Create Index on table
+        $indexRes = $this->postJson('/scry/api/tables/api_orders/indexes?connection=sqlite', [
+            'name' => 'idx_order_num',
+            'columns' => ['order_number'],
+            'type' => 'unique',
+        ]);
+
+        $indexRes->assertStatus(201)
+            ->assertJsonStructure(['success', 'message']);
+
+        // 4. Drop Index
+        $dropIndexRes = $this->deleteJson('/scry/api/tables/api_orders/indexes/idx_order_num?connection=sqlite');
+        $dropIndexRes->assertStatus(200);
+
+        // 5. Drop Table
+        $dropRes = $this->deleteJson('/scry/api/tables/api_orders?connection=sqlite');
+        $dropRes->assertStatus(200);
+    }
 }

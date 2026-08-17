@@ -1,11 +1,17 @@
 {
     "name": "scry/scry",
-    "description": "A modern, reactive database manager and explorer GUI for Laravel 10, 11, 12, and 13+ applications.",
+    "description": "A high-performance database manager, visual workbench, Monaco SQL console, and ERD visualizer for Laravel 10, 11, 12, and 13+ applications.",
     "license": "MIT",
     "homepage": "https://github.com/ninjadd/scry",
     "keywords": [
         "laravel",
         "database",
+        "workbench",
+        "mysql-workbench",
+        "monaco-editor",
+        "query-builder",
+        "erd",
+        "mermaid",
         "manager",
         "explorer",
         "gui",

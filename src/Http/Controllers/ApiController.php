@@ -86,15 +86,17 @@ class ApiController extends Controller
      */
     public function createTable(Request $request): JsonResponse
     {
-        $request->validate([
-            'name' => 'required|string',
-            'columns' => 'required|array|min:1',
-            'connection' => 'nullable|string',
-        ]);
+        $tableName = $request->input('name') ?? $request->input('table_name');
+        if (empty($tableName)) {
+            return response()->json(['error' => 'Table name (name or table_name) is required.'], 422);
+        }
+
+        $cols = $request->input('columns', []);
+        if (empty($cols) || !is_array($cols)) {
+            return response()->json(['error' => 'At least one column definition is required.'], 422);
+        }
 
         $connection = $request->input('connection');
-        $tableName = $request->input('name');
-        $cols = $request->input('columns');
 
         $colDefs = [];
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
@@ -111,26 +113,40 @@ class ApiController extends Controller
 
         foreach ($cols as $col) {
             $colName = $col['name'] ?? null;
-            $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
-            $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
-            $autoInc = '';
-            $pk = !empty($col['is_primary']) ? 'PRIMARY KEY' : '';
-
-            if (!empty($col['auto_increment'])) {
-                if ($driver === 'pgsql') {
-                    $type = 'BIGSERIAL';
-                } elseif ($driver === 'sqlite') {
-                    $type = 'INTEGER';
-                    $autoInc = 'AUTOINCREMENT';
-                } elseif ($driver === 'sqlsrv') {
-                    $autoInc = 'IDENTITY(1,1)';
-                } else {
-                    $autoInc = 'AUTO_INCREMENT';
-                }
+            if (!$colName) {
+                continue;
             }
 
-            if ($colName) {
-                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable} {$autoInc} {$pk}";
+            $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
+            $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
+            $isPk = !empty($col['is_primary']);
+            $isAuto = !empty($col['auto_increment']);
+
+            if ($driver === 'sqlite') {
+                if ($isPk && $isAuto) {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} INTEGER PRIMARY KEY AUTOINCREMENT";
+                } elseif ($isPk) {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} PRIMARY KEY";
+                } else {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}";
+                }
+            } elseif ($driver === 'pgsql') {
+                if ($isPk && $isAuto) {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} BIGSERIAL PRIMARY KEY";
+                } elseif ($isPk) {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} PRIMARY KEY";
+                } else {
+                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}";
+                }
+            } elseif ($driver === 'sqlsrv') {
+                $auto = $isAuto ? ' IDENTITY(1,1)' : '';
+                $pk = $isPk ? ' PRIMARY KEY' : '';
+                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type}{$auto}{$pk} {$nullable}";
+            } else {
+                // mysql, mariadb
+                $auto = $isAuto ? ' AUTO_INCREMENT' : '';
+                $pk = $isPk ? ' PRIMARY KEY' : '';
+                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}{$auto}{$pk}";
             }
         }
 
@@ -146,6 +162,85 @@ class ApiController extends Controller
                 'success' => true,
                 'message' => "Table {$tableName} created successfully.",
             ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * PUT /scry/api/schema/tables/{table}
+     * PUT /scry/api/tables/{table}/alter
+     */
+    public function alterTable(string $table, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
+        $addColumns = $request->input('add_columns', []);
+        $dropColumns = $request->input('drop_columns', []);
+        $renameColumns = $request->input('rename_columns', []);
+
+        $executedSql = [];
+
+        try {
+            // Process Add Columns
+            foreach ($addColumns as $col) {
+                $colName = $col['name'] ?? null;
+                $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
+                $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
+                $default = isset($col['default']) && $col['default'] !== '' ? "DEFAULT '{$col['default']}'" : '';
+
+                if ($colName) {
+                    $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} ADD {$openQuote}{$colName}{$closeQuote} {$type} {$nullable} {$default};";
+                    $this->sqlRunner->execute($sql, $connection);
+                    $executedSql[] = $sql;
+                }
+            }
+
+            // Process Drop Columns
+            foreach ($dropColumns as $colName) {
+                if ($colName) {
+                    $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} DROP COLUMN {$openQuote}{$colName}{$closeQuote};";
+                    $this->sqlRunner->execute($sql, $connection);
+                    $executedSql[] = $sql;
+                }
+            }
+
+            // Process Rename Columns
+            foreach ($renameColumns as $ren) {
+                $from = $ren['from'] ?? null;
+                $to = $ren['to'] ?? null;
+
+                if ($from && $to) {
+                    if ($driver === 'sqlsrv') {
+                        $sql = "EXEC sp_rename '{$table}.{$from}', '{$to}', 'COLUMN';";
+                    } elseif (in_array($driver, ['mysql', 'mariadb'])) {
+                        $type = $ren['type'] ?? 'VARCHAR(255)';
+                        $sql = "ALTER TABLE `{$table}` CHANGE `{$from}` `{$to}` {$type};";
+                    } else {
+                        $sql = "ALTER TABLE \"{$table}\" RENAME COLUMN \"{$from}\" TO \"{$to}\";";
+                    }
+                    $this->sqlRunner->execute($sql, $connection);
+                    $executedSql[] = $sql;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Table {$table} altered successfully.",
+                'statements_executed' => count($executedSql),
+                'sql' => $executedSql,
+            ]);
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -261,6 +356,193 @@ class ApiController extends Controller
             return response()->json([
                 'success' => $success,
                 'message' => "Table {$table} optimized/vacuumed successfully.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/tables/{table}/indexes
+     */
+    public function createIndex(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'columns' => 'required|array|min:1',
+            'type' => 'nullable|in:index,unique,fulltext,spatial',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $indexName = $request->input('name');
+        $columns = $request->input('columns');
+        $type = strtolower($request->input('type', 'index'));
+
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
+        $colsQuoted = implode(', ', array_map(fn($c) => "{$openQuote}{$c}{$closeQuote}", $columns));
+        $prefix = match ($type) {
+            'unique' => 'CREATE UNIQUE INDEX',
+            'fulltext' => ($driver === 'mysql' || $driver === 'mariadb') ? 'CREATE FULLTEXT INDEX' : 'CREATE INDEX',
+            default => 'CREATE INDEX',
+        };
+
+        $sql = "{$prefix} {$openQuote}{$indexName}{$closeQuote} ON {$openQuote}{$table}{$closeQuote} ({$colsQuoted});";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Index {$indexName} created successfully on table {$table}.",
+                'sql' => $sql,
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/tables/{table}/indexes/{index}
+     */
+    public function dropIndex(string $table, string $index, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
+        $sql = match ($driver) {
+            'mysql', 'mariadb' => "ALTER TABLE `{$table}` DROP INDEX `{$index}`;",
+            'sqlsrv' => "DROP INDEX {$openQuote}{$index}{$closeQuote} ON {$openQuote}{$table}{$closeQuote};",
+            default => "DROP INDEX IF EXISTS {$openQuote}{$index}{$closeQuote};",
+        };
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Index {$index} dropped successfully from table {$table}.",
+                'sql' => $sql,
+            ]);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /scry/api/tables/{table}/foreign-keys
+     */
+    public function createForeignKey(string $table, Request $request): JsonResponse
+    {
+        $request->validate([
+            'column' => 'required|string',
+            'foreign_table' => 'required|string',
+            'foreign_column' => 'required|string',
+            'on_delete' => 'nullable|in:CASCADE,RESTRICT,SET NULL,NO ACTION',
+            'on_update' => 'nullable|in:CASCADE,RESTRICT,SET NULL,NO ACTION',
+            'constraint_name' => 'nullable|string',
+            'connection' => 'nullable|string',
+        ]);
+
+        $connection = $request->input('connection');
+        $localCol = $request->input('column');
+        $foreignTable = $request->input('foreign_table');
+        $foreignCol = $request->input('foreign_column');
+        $onDelete = $request->input('on_delete', 'CASCADE');
+        $onUpdate = $request->input('on_update', 'CASCADE');
+        $constraintName = $request->input('constraint_name') ?: "fk_{$table}_{$localCol}";
+
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
+        $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} ADD CONSTRAINT {$openQuote}{$constraintName}{$closeQuote} FOREIGN KEY ({$openQuote}{$localCol}{$closeQuote}) REFERENCES {$openQuote}{$foreignTable}{$closeQuote} ({$openQuote}{$foreignCol}{$closeQuote}) ON DELETE {$onDelete} ON UPDATE {$onUpdate};";
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Foreign key constraint {$constraintName} created successfully.",
+                'sql' => $sql,
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/tables/{table}/foreign-keys/{fk}
+     */
+    public function dropForeignKey(string $table, string $fk, Request $request): JsonResponse
+    {
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $openQuote = match ($driver) {
+            'sqlsrv' => '[',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+        $closeQuote = match ($driver) {
+            'sqlsrv' => ']',
+            'mysql', 'mariadb' => '`',
+            default => '"',
+        };
+
+        $sql = match ($driver) {
+            'mysql', 'mariadb' => "ALTER TABLE `{$table}` DROP FOREIGN KEY `{$fk}`;",
+            'sqlite' => "PRAGMA foreign_keys = OFF;", // SQLite foreign keys are table-definition bound
+            default => "ALTER TABLE {$openQuote}{$table}{$closeQuote} DROP CONSTRAINT {$openQuote}{$fk}{$closeQuote};",
+        };
+
+        try {
+            $res = $this->sqlRunner->execute($sql, $connection);
+            if (isset($res['error'])) {
+                return response()->json(['error' => $res['error']], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Foreign key constraint {$fk} dropped successfully.",
+                'sql' => $sql,
             ]);
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -492,15 +774,27 @@ class ApiController extends Controller
 
     /**
      * GET /scry/api/search?q=...
+     * POST /scry/api/search/global
      */
     public function globalSearch(Request $request): JsonResponse
     {
-        $request->validate(['q' => 'required|string|min:1']);
-        $connection = $request->query('connection');
-        $term = $request->query('q');
+        $term = $request->input('q') ?? $request->input('term') ?? $request->query('q') ?? $request->query('term');
+        
+        if (empty($term) || !is_string($term)) {
+            return response()->json(['error' => 'Search term (q or term) is required.'], 422);
+        }
+
+        $connection = $request->input('connection') ?? $request->query('connection');
+        $limit = (int) ($request->input('limit') ?? $request->query('limit', 10));
+        $tables = $request->input('tables') ?? ($request->query('tables') ? explode(',', $request->query('tables')) : []);
 
         try {
-            return response()->json($this->searchService->search($term, $connection));
+            $options = [
+                'per_table_limit' => $limit,
+                'tables' => is_array($tables) ? $tables : [],
+            ];
+
+            return response()->json($this->searchService->search($term, $connection, $options));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -559,6 +853,7 @@ class ApiController extends Controller
 
     /**
      * GET /scry/api/server/slow-queries
+     * GET /scry/api/server/processes
      */
     public function slowQueries(Request $request): JsonResponse
     {
@@ -568,6 +863,14 @@ class ApiController extends Controller
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * GET /scry/api/server/processes
+     */
+    public function processes(Request $request): JsonResponse
+    {
+        return $this->slowQueries($request);
     }
 
     /**
@@ -583,6 +886,37 @@ class ApiController extends Controller
             return response()->json($this->tuningAdvisor->killProcess($pid, $connection));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/server/processes/{id}
+     */
+    public function killProcessById(string $id, Request $request): JsonResponse
+    {
+        $pid = (int) $id;
+        $connection = $request->input('connection') ?? $request->query('connection');
+
+        try {
+            return response()->json($this->tuningAdvisor->killProcess($pid, $connection));
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * GET /scry/api/server/health
+     */
+    public function healthCheck(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $health = $this->tuningAdvisor->checkHealth($connection);
+            $status = $health['status'] === 'healthy' ? 200 : 503;
+            return response()->json($health, $status);
+        } catch (Throwable $e) {
+            return response()->json(['status' => 'unhealthy', 'error' => $e->getMessage()], 503);
         }
     }
 
@@ -692,6 +1026,27 @@ class ApiController extends Controller
                 'connection' => $connection ?? config('database.default'),
                 'schemas' => $schemas,
             ]);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * GET /scry/api/schema/relationships
+     * Fetch complete schema relationships, primary keys, and foreign key mappings for ERD.
+     */
+    public function schemaRelationships(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $data = $inspector->getSchemaRelationships();
+            $data['connection'] = $connection ?? config('database.default');
+
+            return response()->json($data);
         } catch (UnsupportedDriverException $e) {
             return response()->json(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {

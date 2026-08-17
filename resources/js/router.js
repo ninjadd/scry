@@ -10,6 +10,7 @@ import GlobalSearchView from './views/GlobalSearchView.vue';
 import UserManagementView from './views/UserManagementView.vue';
 import ImportExportView from './views/ImportExportView.vue';
 import RoutinesView from './views/RoutinesView.vue';
+import TableBuilderView from './views/TableBuilderView.vue';
 import SchemaView from './components/SchemaView.vue';
 
 const basePath = window.ScryConfig?.basePath || '/scry';
@@ -18,13 +19,19 @@ const routes = [
   { path: '/', name: 'dashboard', component: DashboardView },
   { path: '/dashboard', name: 'dashboard-alt', component: DashboardView },
   { path: '/tables', name: 'tables', component: TableBrowserView },
+  { path: '/tables/create', name: 'table-builder', component: TableBuilderView },
+  { path: '/schema/builder', name: 'schema-builder', component: TableBuilderView },
   { path: '/tables/:table/data', name: 'data', component: DataGridView, props: true },
   { path: '/tables/:table/schema', name: 'schema', component: SchemaView, props: true },
   { path: '/qbe', name: 'qbe', component: QueryBuilderQBEView },
+  { path: '/query-builder', name: 'query-builder', component: QueryBuilderQBEView },
   { path: '/erd', name: 'erd', component: SchemaVisualizerERDView },
+  { path: '/schema/erd', name: 'schema-erd', component: SchemaVisualizerERDView },
   { path: '/query', name: 'query', component: QueryRunnerView },
   { path: '/console', name: 'console', component: QueryRunnerView },
   { path: '/tuning', name: 'tuning', component: ServerTuningView },
+  { path: '/processes', name: 'processes', component: ServerTuningView },
+  { path: '/monitor', name: 'monitor', component: ServerTuningView },
   { path: '/search', name: 'search', component: GlobalSearchView },
   { path: '/users', name: 'users', component: UserManagementView },
   { path: '/routines', name: 'routines', component: RoutinesView },

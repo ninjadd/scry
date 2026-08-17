@@ -1,9 +1,13 @@
 <template>
   <div class="flex-1 flex flex-col overflow-hidden p-6 scry-bg-app select-none">
+    <!-- Header -->
     <div class="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
       <div>
-        <h2 class="text-2xl font-bold scry-text-main mb-1">ERD Database Schema Visualizer</h2>
-        <p class="text-sm scry-text-muted">Interactive entity-relationship diagram with foreign key relationship arrows for <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.</p>
+        <h2 class="text-2xl font-bold scry-text-main mb-1">Interactive ERD Schema Visualizer</h2>
+        <p class="text-sm scry-text-muted">
+          Entity-Relationship Diagram visualizer powered by Mermaid.js with dynamic canvas controls and export tools for 
+          <span class="font-mono scry-accent-text font-bold">[{{ store.currentConnection }}]</span>.
+        </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -13,22 +17,22 @@
             class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
             :class="activeView === 'diagram' ? 'scry-accent-bg font-bold shadow-sm' : 'scry-text-muted hover:scry-text-main'"
           >
-            ERD Diagram View
+            ERD Visualizer
           </button>
           <button
             @click="activeView = 'cards'"
             class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
             :class="activeView === 'cards' ? 'scry-accent-bg font-bold shadow-sm' : 'scry-text-muted hover:scry-text-main'"
           >
-            Cards View
+            Schema Cards
           </button>
         </div>
 
         <button
-          @click="exportMermaid"
+          @click="exportMermaidCode"
           class="px-3 py-1.5 text-xs font-semibold rounded-md scry-badge-pale-blue hover:opacity-80 transition-opacity cursor-pointer shadow-sm"
         >
-          Export Mermaid Code
+          Copy Mermaid
         </button>
         <button
           @click="exportSvg"
@@ -42,119 +46,135 @@
         >
           Export PNG
         </button>
+        <button
+          @click="loadSchema"
+          class="px-3 py-1.5 text-xs font-semibold rounded-md border scry-border scry-bg-card scry-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-sm"
+        >
+          Refresh
+        </button>
       </div>
     </div>
 
-    <!-- Search Filter & Summary Bar -->
-    <div v-if="!loading" class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 select-none">
+    <!-- Filter & Statistics Bar -->
+    <div v-if="!loading" class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div class="flex items-center space-x-2">
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Filter ERD tables..."
-          class="scry-bg-input border scry-border rounded-lg px-3 py-1.5 text-xs scry-text-main focus:outline-none focus:ring-2 focus:ring-pink-500/50 font-mono shadow-sm"
+          placeholder="Filter tables in diagram..."
+          class="scry-bg-input border scry-border rounded-lg px-3 py-1.5 text-xs scry-text-main focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono shadow-sm"
         />
         <span class="text-xs font-mono scry-text-muted">
-          Showing <strong class="scry-accent-text">{{ filteredNodes.length }}</strong> of {{ schemaNodes.length }} entities
+          Showing <strong class="scry-accent-text">{{ filteredTables.length }}</strong> of {{ tables.length }} tables
         </span>
       </div>
 
       <div class="flex items-center space-x-2 text-xs font-mono">
         <span class="px-2.5 py-1 rounded scry-badge-glaucous font-bold">
-          {{ totalForeignKeys }} Foreign Key Arrows
+          {{ relationships.length }} Foreign Key Relationships
         </span>
       </div>
     </div>
 
-    <!-- Loading -->
+    <!-- Loading State -->
     <div v-if="loading" class="py-20 text-center scry-text-muted font-mono text-xs">
-      Building entity-relationship diagram...
+      Building entity-relationship diagram for {{ store.currentConnection }}...
     </div>
 
-    <!-- Main Visualizer Area -->
-    <div v-else class="flex-1 overflow-hidden scry-bg-card border scry-border rounded-xl shadow-sm flex flex-col relative">
-      <div v-if="filteredNodes.length === 0" class="py-16 text-center text-xs scry-text-muted font-mono">
-        No entities matching filter "{{ searchQuery }}".
+    <!-- Main Canvas View -->
+    <div v-show="!loading" class="flex-1 overflow-hidden scry-bg-card border scry-border rounded-xl shadow-sm flex flex-col relative">
+      <div v-if="filteredTables.length === 0" class="py-16 text-center text-xs scry-text-muted font-mono">
+        No tables matching "{{ searchQuery }}".
       </div>
 
-      <!-- Real ERD Mermaid Visualizer with Zoom & Pan Canvas -->
+      <!-- Interactive Mermaid Canvas Wrapper -->
       <div
-        v-show="activeView === 'diagram' && filteredNodes.length > 0"
-        class="relative flex-1 w-full h-full overflow-hidden"
+        v-show="activeView === 'diagram' && filteredTables.length > 0"
+        ref="canvasWrapper"
+        class="relative flex-1 w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
+        @mousedown="startPan"
+        @mousemove="onPan"
+        @mouseup="endPan"
+        @mouseleave="endPan"
+        @wheel.prevent="onWheel"
       >
-        <!-- Floating Canvas Zoom Controls -->
+        <!-- Floating Canvas Controls -->
         <div class="absolute top-4 right-4 z-30 flex items-center space-x-1 p-1 rounded-lg scry-bg-card border scry-border shadow-lg text-xs font-mono select-none">
           <button
             @click="zoomIn"
-            class="px-2 py-1 rounded hover:scry-bg-input scry-text-main font-bold cursor-pointer transition-colors"
+            class="px-2.5 py-1 rounded hover:scry-bg-input scry-text-main font-bold cursor-pointer transition-colors"
             title="Zoom In (+)"
           >+</button>
 
-          <span class="px-2 py-1 text-[11px] font-bold scry-accent-text min-w-[45px] text-center">
+          <span class="px-2 py-1 text-[11px] font-bold scry-accent-text min-w-[50px] text-center">
             {{ Math.round(zoomScale * 100) }}%
           </span>
 
           <button
             @click="zoomOut"
-            class="px-2 py-1 rounded hover:scry-bg-input scry-text-main font-bold cursor-pointer transition-colors"
+            class="px-2.5 py-1 rounded hover:scry-bg-input scry-text-main font-bold cursor-pointer transition-colors"
             title="Zoom Out (-)"
           >&minus;</button>
 
-          <div class="h-4 w-px bg-slate-300 dark:bg-slate-700 my-auto mx-1"></div>
-
           <button
-            @click="resetZoom"
-            class="px-2.5 py-1 rounded hover:scry-bg-input scry-text-main cursor-pointer transition-colors text-[11px] font-semibold"
-            title="Reset Zoom & Pan"
+            @click="resetView"
+            class="px-2.5 py-1 rounded hover:scry-bg-input scry-text-main font-semibold cursor-pointer transition-colors text-[11px]"
+            title="Reset Canvas View"
           >Reset</button>
         </div>
 
-        <!-- Canvas Viewport -->
+        <!-- Rendered Mermaid SVG Container -->
         <div
-          ref="viewportContainer"
-          @wheel.prevent="handleWheelZoom"
-          @mousedown="handleCanvasPanStart"
-          class="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing flex items-center justify-center"
+          class="mermaid-container w-full h-full flex items-center justify-center p-8 transition-transform duration-75 origin-center"
+          :style="{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+          }"
         >
-          <div
-            ref="diagramContainer"
-            :style="{
-              transform: `translate(${panX}px, ${panY}px) scale(${zoomScale})`,
-              transformOrigin: 'center center',
-              transition: isPanning || isDraggingNode ? 'none' : 'transform 0.1s ease-out'
-            }"
-            class="inline-block p-12 font-mono text-xs"
-          ></div>
+          <div ref="mermaidOutput" class="mermaid-target"></div>
         </div>
       </div>
 
-      <!-- Table Cards Grid View -->
-      <div v-show="activeView === 'cards' && filteredNodes.length > 0" id="erd-container" ref="erdContainer" class="flex-1 overflow-auto p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Schema Cards View (Alternate Tab) -->
+      <div
+        v-show="activeView === 'cards'"
+        class="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
         <div
-          v-for="t in filteredNodes"
-          :key="t.table"
-          class="border scry-border rounded-xl overflow-hidden shadow-sm scry-bg-card flex flex-col transition-all hover:border-pink-500/50"
+          v-for="t in filteredTables"
+          :key="t.name"
+          class="p-4 rounded-xl border scry-border scry-bg-input shadow-sm space-y-3 flex flex-col justify-between"
         >
-          <div class="px-4 py-3 scry-bg-header border-b scry-border flex items-center justify-between">
-            <h3 class="font-mono font-bold text-sm scry-accent-text">{{ t.table }}</h3>
-            <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded scry-badge-glaucous">
-              {{ t.columns.length }} cols
-            </span>
-          </div>
-
-          <div class="p-3 space-y-1.5 font-mono text-xs divide-y scry-border-subtle flex-1">
-            <div v-for="c in t.columns" :key="c.name" class="pt-1 flex items-center justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b scry-border-subtle pb-2 mb-2">
               <div class="flex items-center space-x-1.5">
-                <span v-if="c.is_primary" class="text-[9px] font-sans font-bold px-1 rounded scry-badge-sulphur">PK</span>
-                <span v-if="c.is_foreign_key" class="text-[9px] font-sans font-bold px-1 rounded scry-badge-pale-blue">FK</span>
-                <span class="scry-text-main">{{ c.name }}</span>
+                <span class="font-mono font-bold text-sm scry-accent-text">{{ t.name }}</span>
               </div>
-              <span class="text-[10px] scry-text-subtle">{{ c.full_type || c.data_type }}</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded scry-badge-glaucous font-bold">
+                {{ t.rows }} rows
+              </span>
+            </div>
+
+            <!-- Columns List -->
+            <div class="space-y-1 max-h-48 overflow-y-auto font-mono text-xs">
+              <div
+                v-for="c in t.columns"
+                :key="c.name"
+                class="flex items-center justify-between py-0.5 border-b border-slate-500/10 text-[11px]"
+              >
+                <div class="flex items-center space-x-1.5">
+                  <span v-if="c.is_primary" class="text-[9px] font-mono font-bold px-1 rounded scry-badge-sulphur">PK</span>
+                  <span v-else-if="c.is_foreign_key" class="text-[9px] font-mono font-bold px-1 rounded scry-badge-pale-blue">FK</span>
+                  <span :class="c.is_primary ? 'font-bold scry-text-main' : 'scry-text-muted'">{{ c.name }}</span>
+                </div>
+                <span class="text-[10px] text-slate-400 dark:text-slate-500">{{ c.data_type || c.type }}</span>
+              </div>
             </div>
           </div>
 
-          <div v-if="t.foreign_keys && t.foreign_keys.length > 0" class="px-3 py-2 border-t scry-border-subtle text-[11px] scry-text-muted bg-slate-500/5 font-mono">
-            <div v-for="fk in t.foreign_keys" :key="fk.constraint_name">
+          <!-- Foreign Key Relations -->
+          <div v-if="t.foreign_keys && t.foreign_keys.length > 0" class="pt-2 border-t scry-border text-[11px] font-mono">
+            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Foreign Keys</span>
+            <div v-for="fk in t.foreign_keys" :key="fk.constraint_name" class="text-sky-600 dark:text-sky-400 truncate">
               &rarr; {{ fk.column_name }} &bull; {{ fk.foreign_table_name }}({{ fk.foreign_column_name }})
             </div>
           </div>
@@ -166,424 +186,228 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import mermaid from 'mermaid';
 import { useConnectionStore } from '../stores/useConnectionStore';
+import { useToastStore } from '../stores/useToastStore';
+import mermaid from 'mermaid';
 
 const store = useConnectionStore();
+const toast = useToastStore();
+
 const loading = ref(true);
-const renderError = ref('');
-const activeView = ref('diagram'); // 'diagram' or 'cards'
-const schemaNodes = ref([]);
-const erdContainer = ref(null);
-const diagramContainer = ref(null);
-const viewportContainer = ref(null);
+const activeView = ref('diagram'); // 'diagram' | 'cards'
 const searchQuery = ref('');
 
-// Zoom & Pan Canvas Reactive State
+const tables = ref([]);
+const relationships = ref([]);
+
+const mermaidOutput = ref(null);
+const canvasWrapper = ref(null);
+
 const zoomScale = ref(1.0);
-const panX = ref(0);
-const panY = ref(0);
+const panOffset = ref({ x: 0, y: 0 });
 const isPanning = ref(false);
-const isDraggingNode = ref(false);
+const panStart = ref({ x: 0, y: 0 });
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  themeVariables: {
-    fontFamily: 'Fira Code, monospace',
-    fontSize: '12px',
-    primaryColor: '#e1f2fa',
-    primaryTextColor: '#1c262a',
-    primaryBorderColor: '#b91c5c',
-    lineColor: '#b91c5c',
-    secondaryColor: '#e4f0ea',
-    tertiaryColor: '#f8f1c8',
-  },
-  securityLevel: 'loose',
-});
-
-const filteredNodes = computed(() => {
-  if (!searchQuery.value.trim()) return schemaNodes.value;
+const filteredTables = computed(() => {
+  if (!searchQuery.value.trim()) return tables.value;
   const q = searchQuery.value.toLowerCase();
-  return schemaNodes.value.filter(n =>
-    n.table.toLowerCase().includes(q) ||
-    n.columns.some(c => c.name.toLowerCase().includes(q))
-  );
+  return tables.value.filter(t => t.name.toLowerCase().includes(q));
 });
 
-const totalForeignKeys = computed(() => {
-  return schemaNodes.value.reduce((acc, node) => acc + (node.foreign_keys?.length || 0), 0);
-});
+const loadSchema = async () => {
+  loading.value = true;
+  try {
+    const res = await store.scryFetch('/schema/relationships');
+    if (res.ok) {
+      const data = await res.json();
+      tables.value = data.tables || [];
+      relationships.value = data.relationships || [];
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to load schema relationships.');
+  } finally {
+    loading.value = false;
+    await nextTick();
+    await renderMermaidDiagram();
+  }
+};
 
-// Canvas Zoom & Pan Actions
+const generateMermaidSyntax = () => {
+  const visibleTableNames = new Set(filteredTables.value.map(t => t.name));
+  let syntax = 'erDiagram\n';
+
+  // Tables & Column definitions
+  for (const t of filteredTables.value) {
+    const cleanName = t.name.replace(/[^a-zA-Z0-9_]/g, '_');
+    syntax += `    ${cleanName} {\n`;
+    for (const c of t.columns.slice(0, 15)) {
+      const cleanCol = c.name.replace(/[^a-zA-Z0-9_]/g, '_');
+      const rawType = c.data_type || c.type || 'string';
+      const cleanType = rawType.replace(/[^a-zA-Z0-9_]/g, '_') || 'string';
+      const pkBadge = c.is_primary ? ' PK' : (c.is_foreign_key ? ' FK' : '');
+      syntax += `        ${cleanType} ${cleanCol}${pkBadge}\n`;
+    }
+    syntax += `    }\n`;
+  }
+
+  // Relationship lines
+  for (const r of relationships.value) {
+    if (visibleTableNames.has(r.from_table) && visibleTableNames.has(r.to_table)) {
+      const fromClean = r.from_table.replace(/[^a-zA-Z0-9_]/g, '_');
+      const toClean = r.to_table.replace(/[^a-zA-Z0-9_]/g, '_');
+      const label = (r.from_column || 'fk').replace(/[^a-zA-Z0-9_]/g, '_');
+      // Many-to-one relationship
+      syntax += `    ${toClean} ||--o{ ${fromClean} : "${label}"\n`;
+    }
+  }
+
+  return syntax;
+};
+
+const renderMermaidDiagram = async () => {
+  await nextTick();
+  if (!mermaidOutput.value || filteredTables.value.length === 0) return;
+
+  const isDark = document.documentElement.classList.contains('dark');
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: isDark ? 'dark' : 'default',
+    er: {
+      useMaxWidth: false,
+      layoutDirection: 'TB',
+    },
+    securityLevel: 'loose',
+  });
+
+  const syntax = generateMermaidSyntax();
+  try {
+    const id = `mermaid-erd-${Date.now()}`;
+    const { svg } = await mermaid.render(id, syntax);
+    mermaidOutput.value.innerHTML = svg;
+  } catch (err) {
+    console.error('Mermaid render error:', err);
+    mermaidOutput.value.innerHTML = `<div class="p-4 text-xs font-mono text-rose-500">Failed to render Mermaid ERD graph: ${err.message}</div>`;
+  }
+};
+
 const zoomIn = () => {
-  zoomScale.value = Math.min(zoomScale.value + 0.15, 2.5);
+  zoomScale.value = Math.min(zoomScale.value + 0.15, 3.0);
 };
 
 const zoomOut = () => {
-  zoomScale.value = Math.max(zoomScale.value - 0.15, 0.4);
+  zoomScale.value = Math.max(zoomScale.value - 0.15, 0.3);
 };
 
-const resetZoom = () => {
+const resetView = () => {
   zoomScale.value = 1.0;
-  panX.value = 0;
-  panY.value = 0;
+  panOffset.value = { x: 0, y: 0 };
 };
 
-const handleWheelZoom = (e) => {
-  if (e.deltaY < 0) {
-    zoomIn();
+const onWheel = (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoomScale.value = Math.max(0.3, Math.min(3.0, zoomScale.value + delta));
   } else {
-    zoomOut();
+    panOffset.value.x -= e.deltaX;
+    panOffset.value.y -= e.deltaY;
   }
 };
 
-const handleCanvasPanStart = (e) => {
-  if (e.target.closest('g.node, g[id*="entity"], g.entityBox')) return;
+const startPan = (e) => {
+  if (e.target.closest('button')) return;
   isPanning.value = true;
-  let startX = e.clientX - panX.value;
-  let startY = e.clientY - panY.value;
-
-  const onMouseMove = (moveEvent) => {
-    if (!isPanning.value) return;
-    panX.value = moveEvent.clientX - startX;
-    panY.value = moveEvent.clientY - startY;
-  };
-
-  const onMouseUp = () => {
-    isPanning.value = false;
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
-  };
-
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
+  panStart.value = { x: e.clientX - panOffset.value.x, y: e.clientY - panOffset.value.y };
 };
 
-const generateMermaidDefinition = (nodes) => {
-  let def = 'erDiagram\n';
-  const sanitizeName = (name) => (name || '').replace(/[^a-zA-Z0-9_]/g, '_');
-  const sanitizeType = (type) => {
-    let clean = (type || 'string').toLowerCase().replace(/\(.*?\)/g, '').replace(/\[\]/g, '_array').replace(/[^a-zA-Z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
-    return clean || 'string';
+const onPan = (e) => {
+  if (!isPanning.value) return;
+  panOffset.value = {
+    x: e.clientX - panStart.value.x,
+    y: e.clientY - panStart.value.y,
   };
-
-  const validTableNames = new Set(nodes.map(n => sanitizeName(n.table)));
-
-  for (const node of nodes) {
-    const tableName = sanitizeName(node.table);
-    def += `    ${tableName} {\n`;
-    for (const c of node.columns) {
-      const colName = sanitizeName(c.name);
-      const colType = sanitizeType(c.data_type || c.full_type);
-      const pkFk = c.is_primary ? (c.is_foreign_key ? 'PK "FK"' : 'PK') : (c.is_foreign_key ? 'FK' : '');
-      def += `        ${colType} ${colName} ${pkFk}\n`;
-    }
-    def += `    }\n`;
-
-    if (node.foreign_keys) {
-      for (const fk of node.foreign_keys) {
-        const targetTable = sanitizeName(fk.foreign_table_name);
-        const sourceCol = sanitizeName(fk.column_name);
-        if (targetTable && sourceCol && validTableNames.has(targetTable)) {
-          def += `    ${tableName} }|..|| ${targetTable} : "${sourceCol}"\n`;
-        }
-      }
-    }
-  }
-  return def;
 };
 
-const makeSvgNodesDraggable = (svgEl) => {
-  if (!svgEl) return;
-
-  const nodeOffsets = new Map();
-  const edgeMap = [];
-
-  const nodeGroups = svgEl.querySelectorAll('g.node, g[id*="entity"], g.entityBox');
-  const nodeMap = new Map();
-
-  nodeGroups.forEach((node) => {
-    let idAttr = node.getAttribute('id') || '';
-    let textContent = node.textContent || '';
-    let tableName = '';
-    const idMatch = /entity-([a-zA-Z0-9_]+)/.exec(idAttr);
-    if (idMatch) {
-      tableName = idMatch[1];
-    } else {
-      const match = textContent.match(/([a-zA-Z0-9_]+)/);
-      if (match) tableName = match[1];
-    }
-    if (tableName) {
-      nodeMap.set(node, tableName);
-      nodeOffsets.set(tableName, { dx: 0, dy: 0 });
-    }
-  });
-
-  const paths = svgEl.querySelectorAll('g.edgePaths path, path[id*="L-"], path.edge-thickness-normal');
-  paths.forEach((path) => {
-    let idStr = (path.getAttribute('id') || '') + ' ' + (path.getAttribute('class') || '');
-    let match = /L-([a-zA-Z0-9_]+)-([a-zA-Z0-9_]+)/.exec(idStr);
-    if (!match && path.parentElement) {
-      idStr += ' ' + (path.parentElement.getAttribute('id') || '') + ' ' + (path.parentElement.getAttribute('class') || '');
-      match = /L-([a-zA-Z0-9_]+)-([a-zA-Z0-9_]+)/.exec(idStr);
-    }
-    if (match) {
-      const sourceTable = match[1];
-      const targetTable = match[2];
-      const origD = path.getAttribute('d') || '';
-
-      const labelEl = svgEl.querySelector(`g.edgeLabels [id*="${sourceTable}"][id*="${targetTable}"], g.edgeLabel[id*="${sourceTable}"]`);
-      let origLabelTransform = labelEl ? (labelEl.getAttribute('transform') || '') : '';
-
-      edgeMap.push({
-        pathEl: path,
-        labelEl,
-        sourceTable,
-        targetTable,
-        origD,
-        origLabelTransform
-      });
-    }
-  });
-
-  const updatePathD = (dStr, srcDx, srcDy, tgtDx, tgtDy) => {
-    if (!dStr) return dStr;
-    const parts = dStr.trim().split(/\s*([MCcLLHVvCSQTTAZz])\s*/).filter(Boolean);
-    let newD = '';
-    let i = 0;
-    while (i < parts.length) {
-      const cmd = parts[i];
-      if (cmd === 'M' || cmd === 'L') {
-        const coords = (parts[i + 1] || '').trim().split(/[\s,]+/).map(Number);
-        if (coords.length >= 2) {
-          const isStart = (i === 0);
-          const dx = isStart ? srcDx : tgtDx;
-          const dy = isStart ? srcDy : tgtDy;
-          newD += `${cmd} ${coords[0] + dx} ${coords[1] + dy} `;
-        }
-        i += 2;
-      } else if (cmd === 'C') {
-        const coords = (parts[i + 1] || '').trim().split(/[\s,]+/).map(Number);
-        if (coords.length >= 6) {
-          newD += `C ${coords[0] + srcDx} ${coords[1] + srcDy}, ${coords[2] + tgtDx} ${coords[3] + tgtDy}, ${coords[4] + tgtDx} ${coords[5] + tgtDy} `;
-        }
-        i += 2;
-      } else {
-        newD += `${cmd} ${parts[i + 1] || ''} `;
-        i += 2;
-      }
-    }
-    return newD.trim();
-  };
-
-  const updateConnectedEdges = (draggedTable) => {
-    edgeMap.forEach((edge) => {
-      if (edge.sourceTable === draggedTable || edge.targetTable === draggedTable) {
-        const srcOffset = nodeOffsets.get(edge.sourceTable) || { dx: 0, dy: 0 };
-        const tgtOffset = nodeOffsets.get(edge.targetTable) || { dx: 0, dy: 0 };
-
-        const newD = updatePathD(edge.origD, srcOffset.dx, srcOffset.dy, tgtOffset.dx, tgtOffset.dy);
-        edge.pathEl.setAttribute('d', newD);
-
-        if (edge.labelEl && edge.origLabelTransform) {
-          const midDx = (srcOffset.dx + tgtOffset.dx) / 2;
-          const midDy = (srcOffset.dy + tgtOffset.dy) / 2;
-
-          let labelMatch = /translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/.exec(edge.origLabelTransform);
-          if (labelMatch) {
-            const lx = parseFloat(labelMatch[1]) + midDx;
-            const ly = parseFloat(labelMatch[2]) + midDy;
-            edge.labelEl.setAttribute('transform', edge.origLabelTransform.replace(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/, `translate(${lx}, ${ly})`));
-          }
-        }
-      }
-    });
-  };
-
-  nodeGroups.forEach((node) => {
-    const tableName = nodeMap.get(node);
-    node.style.cursor = 'grab';
-
-    node.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-      isDraggingNode.value = true;
-      let isDragging = true;
-      node.style.cursor = 'grabbing';
-
-      let currentTransform = node.getAttribute('transform') || '';
-      let match = /translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/.exec(currentTransform);
-      let initialX = match ? parseFloat(match[1]) : 0;
-      let initialY = match ? parseFloat(match[2]) : 0;
-
-      let startX = e.clientX;
-      let startY = e.clientY;
-
-      const onMouseMove = (moveEvent) => {
-        if (!isDragging) return;
-        moveEvent.preventDefault();
-        const dx = (moveEvent.clientX - startX) / zoomScale.value;
-        const dy = (moveEvent.clientY - startY) / zoomScale.value;
-        const newX = initialX + dx;
-        const newY = initialY + dy;
-
-        if (match) {
-          node.setAttribute('transform', currentTransform.replace(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/, `translate(${newX}, ${newY})`));
-        } else {
-          node.setAttribute('transform', `translate(${newX}, ${newY}) ${currentTransform}`);
-        }
-
-        if (tableName) {
-          nodeOffsets.set(tableName, { dx: newX - initialX, dy: newY - initialY });
-          updateConnectedEdges(tableName);
-        }
-      };
-
-      const onMouseUp = () => {
-        isDragging = false;
-        isDraggingNode.value = false;
-        node.style.cursor = 'grab';
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-      };
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    });
-  });
+const endPan = () => {
+  isPanning.value = false;
 };
 
-const renderDiagram = async () => {
-  renderError.value = '';
-  if (filteredNodes.value.length === 0) return;
-  await nextTick();
-  const def = generateMermaidDefinition(filteredNodes.value);
-  try {
-    const id = `mermaid-erd-${Date.now()}`;
-    const { svg } = await mermaid.render(id, def);
-    if (diagramContainer.value) {
-      diagramContainer.value.innerHTML = svg;
-      const svgEl = diagramContainer.value.querySelector('svg');
-      if (svgEl) {
-        svgEl.style.overflow = 'visible';
-        svgEl.style.padding = '60px 40px 40px 40px';
-        svgEl.style.maxWidth = 'none';
-        makeSvgNodesDraggable(svgEl);
-      }
-    }
-  } catch (err) {
-    console.error('Failed to render ERD diagram:', err);
-    renderError.value = err.message || 'Failed to render ERD diagram';
-    if (diagramContainer.value) {
-      diagramContainer.value.innerHTML = `<div class="p-4 text-center text-rose-500 font-mono text-xs">Error rendering ERD diagram: ${err.message || 'Syntax or rendering error'}</div>`;
-    }
-  }
-};
-
-const loadFullSchema = async () => {
-  loading.value = true;
-  schemaNodes.value = [];
-
-  try {
-    const res = await store.scryFetch('/schema/full');
-    if (res.ok) {
-      const data = await res.json();
-      schemaNodes.value = data.schemas || [];
-    }
-  } catch (err) {
-    console.error('Failed to load full schema:', err);
-  } finally {
-    loading.value = false;
-    renderDiagram();
-  }
-};
-
-const exportMermaid = () => {
-  const def = generateMermaidDefinition(filteredNodes.value);
-  const blob = new Blob([def], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `schema_${store.currentConnection}.mmd`;
-  a.click();
+const exportMermaidCode = () => {
+  const code = generateMermaidSyntax();
+  navigator.clipboard.writeText(code);
+  toast.success('Mermaid syntax copied to clipboard!');
 };
 
 const exportSvg = () => {
-  const svgEl = diagramContainer.value ? diagramContainer.value.querySelector('svg') : null;
+  const svgEl = mermaidOutput.value?.querySelector('svg');
   if (!svgEl) {
-    alert('No ERD diagram SVG available to export.');
+    toast.error('No SVG element found to export.');
     return;
   }
+
   const svgData = new XMLSerializer().serializeToString(svgEl);
   const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `erd_${store.currentConnection}.svg`;
-  a.click();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `erd_schema_${store.currentConnection}_${Date.now()}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast.success('ERD SVG exported successfully.');
 };
 
 const exportPng = () => {
-  const svgEl = diagramContainer.value ? diagramContainer.value.querySelector('svg') : null;
+  const svgEl = mermaidOutput.value?.querySelector('svg');
   if (!svgEl) {
-    alert('No ERD diagram SVG available to export.');
+    toast.error('No SVG element found to export.');
     return;
   }
 
-  try {
-    const clone = svgEl.cloneNode(true);
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
 
-    const bbox = svgEl.getBoundingClientRect();
-    const width = Math.max(bbox.width || 1200, 1000);
-    const height = Math.max(bbox.height || 900, 800);
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
 
-    clone.setAttribute('width', width.toString());
-    clone.setAttribute('height', height.toString());
-    clone.style.backgroundColor = '#faf9f5';
+  img.onload = () => {
+    canvas.width = img.width * 2;
+    canvas.height = img.height * 2;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    const svgString = new XMLSerializer().serializeToString(clone);
-    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    const pngUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = pngUrl;
+    link.download = `erd_schema_${store.currentConnection}_${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('ERD PNG exported successfully.');
+  };
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = width * 2;
-      canvas.height = height * 2;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(2, 2);
-      ctx.fillStyle = '#faf9f5';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = pngUrl;
-      a.download = `erd_${store.currentConnection}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
-
-    img.onerror = (e) => {
-      console.error('PNG conversion error:', e);
-      alert('Could not convert SVG to PNG image.');
-    };
-
-    img.src = svgDataUrl;
-  } catch (err) {
-    console.error('Export PNG failed:', err);
-    alert('Failed to export PNG: ' + err.message);
-  }
+  img.src = url;
 };
 
-onMounted(loadFullSchema);
-watch(searchQuery, renderDiagram);
-watch(activeView, (newVal) => {
-  if (newVal === 'diagram') renderDiagram();
+onMounted(loadSchema);
+watch(() => store.currentConnection, loadSchema);
+watch(activeView, async (newVal) => {
+  if (newVal === 'diagram') {
+    await renderMermaidDiagram();
+  }
 });
-watch(() => store.currentConnection, loadFullSchema);
+watch(searchQuery, async () => {
+  await renderMermaidDiagram();
+});
 </script>
+
+<style scoped>
+.mermaid-target :deep(svg) {
+  max-width: none !important;
+  height: auto !important;
+}
+</style>

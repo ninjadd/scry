@@ -12,31 +12,54 @@ class ImportService
     ) {}
 
     /**
-     * Import a raw SQL dump file into the connection with quote-aware statement splitting.
+     * Import a raw SQL dump file into the connection within an isolated database transaction.
+     * Automatically rolls back if any statement fails.
      */
     public function importSql(string $sqlContent, ?string $connectionName = null): array
     {
-        $connection = $this->dbManager->connection($connectionName ?? config('database.default'));
+        $connectionName = $connectionName ?? config('database.default');
+        $connection = $this->dbManager->connection($connectionName);
         
         $statements = $this->parseSqlStatements($sqlContent);
 
-        $executed = 0;
-        $errors = [];
-
-        foreach ($statements as $stmt) {
-            try {
-                $connection->statement($stmt);
-                $executed++;
-            } catch (Throwable $e) {
-                $errors[] = $e->getMessage();
-            }
+        if (empty($statements)) {
+            return [
+                'success' => false,
+                'executed_statements' => 0,
+                'total_statements' => 0,
+                'error' => 'No valid SQL statements found in the uploaded content.',
+            ];
         }
 
-        return [
-            'success' => empty($errors),
-            'executed_statements' => $executed,
-            'errors' => $errors,
-        ];
+        $executed = 0;
+        $connection->beginTransaction();
+
+        try {
+            foreach ($statements as $index => $stmt) {
+                $connection->statement($stmt);
+                $executed++;
+            }
+            $connection->commit();
+
+            return [
+                'success' => true,
+                'executed_statements' => $executed,
+                'total_statements' => count($statements),
+                'transaction_committed' => true,
+            ];
+        } catch (Throwable $e) {
+            $connection->rollBack();
+
+            return [
+                'success' => false,
+                'executed_statements' => $executed,
+                'total_statements' => count($statements),
+                'failed_statement_index' => $executed + 1,
+                'failed_statement' => $statements[$executed] ?? '',
+                'transaction_committed' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -132,11 +155,12 @@ class ImportService
     }
 
     /**
-     * Import CSV content into a target table.
+     * Import CSV content into a target table within a database transaction.
      */
     public function importCsv(string $table, string $csvContent, ?string $connectionName = null): array
     {
-        $connection = $this->dbManager->connection($connectionName ?? config('database.default'));
+        $connectionName = $connectionName ?? config('database.default');
+        $connection = $this->dbManager->connection($connectionName);
 
         $stream = fopen('php://temp', 'r+');
         fwrite($stream, $csvContent);
@@ -144,33 +168,49 @@ class ImportService
 
         $headers = fgetcsv($stream);
         if (!$headers) {
+            fclose($stream);
             return ['success' => false, 'inserted_rows' => 0, 'error' => 'CSV file is empty or missing headers.'];
         }
 
         $inserted = 0;
         $batch = [];
+        $connection->beginTransaction();
 
-        while (($row = fgetcsv($stream)) !== false) {
-            if (count($row) === count($headers)) {
-                $batch[] = array_combine($headers, $row);
-                $inserted++;
+        try {
+            while (($row = fgetcsv($stream)) !== false) {
+                if (count($row) === count($headers)) {
+                    $batch[] = array_combine($headers, $row);
+                    $inserted++;
+                }
+
+                if (count($batch) >= 100) {
+                    $connection->table($table)->insert($batch);
+                    $batch = [];
+                }
             }
 
-            if (count($batch) >= 100) {
+            if (!empty($batch)) {
                 $connection->table($table)->insert($batch);
-                $batch = [];
             }
+
+            $connection->commit();
+            fclose($stream);
+
+            return [
+                'success' => true,
+                'inserted_rows' => $inserted,
+                'transaction_committed' => true,
+            ];
+        } catch (Throwable $e) {
+            $connection->rollBack();
+            fclose($stream);
+
+            return [
+                'success' => false,
+                'inserted_rows' => 0,
+                'transaction_committed' => false,
+                'error' => $e->getMessage(),
+            ];
         }
-
-        if (!empty($batch)) {
-            $connection->table($table)->insert($batch);
-        }
-
-        fclose($stream);
-
-        return [
-            'success' => true,
-            'inserted_rows' => $inserted,
-        ];
     }
 }

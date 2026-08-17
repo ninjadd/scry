@@ -50,4 +50,16 @@ class GlobalSearchServiceTest extends TestCase
         $this->assertContains('search_users', $tableNames);
         $this->assertContains('search_notes', $tableNames);
     }
+
+    public function test_global_search_respects_table_filter_and_limits(): void
+    {
+        $res = $this->searchService->search('Antigravity', 'sqlite', [
+            'tables' => ['search_users'],
+            'per_table_limit' => 1,
+        ]);
+
+        $this->assertEquals(1, $res['matching_tables_count']);
+        $this->assertEquals('search_users', $res['results'][0]['table']);
+        $this->assertCount(1, $res['results'][0]['sample_matches']);
+    }
 }

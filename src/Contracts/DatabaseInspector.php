@@ -176,6 +176,13 @@ interface DatabaseInspector
     public function getUsers(): array;
 
     /**
+     * Get relational schema map with tables, primary keys, foreign keys, and relationships.
+     *
+     * @return array
+     */
+    public function getSchemaRelationships(): array;
+
+    /**
      * Execute a raw SQL query against the connection.
      *
      * @param string $query

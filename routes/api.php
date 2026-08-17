@@ -17,11 +17,14 @@ Route::group([
     Route::post('/databases', [ApiController::class, 'createDatabase'])->name('databases.create');
     Route::delete('/databases', [ApiController::class, 'dropDatabase'])->name('databases.drop');
 
-    // Server Stats & Tuning
+    // Server Stats & Tuning & Processes
     Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
     Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions'])->name('server.tuning');
     Route::get('/server/slow-queries', [ApiController::class, 'slowQueries'])->name('server.slow_queries');
+    Route::get('/server/processes', [ApiController::class, 'processes'])->name('server.processes');
     Route::post('/server/kill-process', [ApiController::class, 'killProcess'])->name('server.kill_process');
+    Route::delete('/server/processes/{id}', [ApiController::class, 'killProcessById'])->name('server.processes.kill');
+    Route::get('/server/health', [ApiController::class, 'healthCheck'])->name('server.health');
 
     // Routines & Triggers
     Route::get('/views', [ApiController::class, 'views'])->name('views');
@@ -37,19 +40,31 @@ Route::group([
 
     // Global Search & Import/Export
     Route::get('/search', [ApiController::class, 'globalSearch'])->name('search');
+    Route::post('/search/global', [ApiController::class, 'globalSearch'])->name('search.global');
+    Route::get('/search/global', [ApiController::class, 'globalSearch'])->name('search.global.get');
     Route::post('/import', [ApiController::class, 'importFile'])->name('import');
     Route::get('/export/{table}', [ApiController::class, 'exportTable'])->name('export');
 
     // Tables & Rows DDL
     Route::get('/tables', [ApiController::class, 'tables'])->name('tables');
     Route::post('/tables', [ApiController::class, 'createTable'])->name('tables.create');
+    Route::post('/schema/tables', [ApiController::class, 'createTable'])->name('schema.tables.create');
+    Route::put('/schema/tables/{table}', [ApiController::class, 'alterTable'])->name('schema.tables.alter');
+    Route::put('/tables/{table}/alter', [ApiController::class, 'alterTable'])->name('tables.alter');
     Route::post('/tables/copy', [ApiController::class, 'copyTable'])->name('tables.copy');
     Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable'])->name('tables.rename');
     Route::delete('/tables/{table}', [ApiController::class, 'dropTable'])->name('tables.drop');
     Route::post('/tables/{table}/truncate', [ApiController::class, 'truncateTable'])->name('tables.truncate');
     Route::post('/tables/{table}/optimize', [ApiController::class, 'optimizeTable'])->name('tables.optimize');
 
+    // Index & Foreign Key Management Routes
+    Route::post('/tables/{table}/indexes', [ApiController::class, 'createIndex'])->name('tables.indexes.create');
+    Route::delete('/tables/{table}/indexes/{index}', [ApiController::class, 'dropIndex'])->name('tables.indexes.drop');
+    Route::post('/tables/{table}/foreign-keys', [ApiController::class, 'createForeignKey'])->name('tables.foreign_keys.create');
+    Route::delete('/tables/{table}/foreign-keys/{fk}', [ApiController::class, 'dropForeignKey'])->name('tables.foreign_keys.drop');
+
     Route::get('/schema/full', [ApiController::class, 'fullSchema'])->name('schema.full');
+    Route::get('/schema/relationships', [ApiController::class, 'schemaRelationships'])->name('schema.relationships');
     Route::get('/tables/{table}/schema', [ApiController::class, 'schema'])->name('schema');
     Route::get('/tables/{table}/rows', [ApiController::class, 'rows'])->name('rows');
     Route::get('/tables/{table}/data', [ApiController::class, 'rows'])->name('data');

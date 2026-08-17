@@ -74,9 +74,17 @@
             <span class="px-3 text-[10px] font-bold uppercase tracking-wider scry-text-subtle">Visual Tools</span>
             <div class="mt-1 space-y-0.5">
               <router-link
+                to="/tables/create"
+                class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                :class="$route.name === 'table-builder' || $route.name === 'schema-builder' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+              >
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Table Designer (DDL)
+              </router-link>
+              <router-link
                 to="/qbe"
                 class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
-                :class="$route.name === 'qbe' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+                :class="$route.name === 'qbe' || $route.name === 'query-builder' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
               >
                 <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V4zM4 7a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V7zM18 7a2 2 0 114 0v1a2 2 0 01-2 2 2 2 0 01-2-2V7z"/></svg>
                 QBE Query Builder
@@ -84,7 +92,7 @@
               <router-link
                 to="/erd"
                 class="flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
-                :class="$route.name === 'erd' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
+                :class="$route.name === 'erd' || $route.name === 'schema-erd' ? 'scry-accent-bg font-semibold shadow-sm' : 'scry-text-muted hover:scry-text-main hover:scry-bg-card'"
               >
                 <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
                 ERD Visualizer
