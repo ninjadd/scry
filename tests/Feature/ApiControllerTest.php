@@ -117,4 +117,47 @@ class ApiControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['status', 'connection', 'driver', 'latency_ms']);
     }
+
+    public function test_create_and_alter_table_endpoints(): void
+    {
+        // 1. Create table via /scry/api/schema/tables
+        $createRes = $this->postJson('/scry/api/schema/tables?connection=sqlite', [
+            'table_name' => 'api_orders',
+            'columns' => [
+                ['name' => 'id', 'type' => 'INTEGER', 'nullable' => false, 'is_primary' => true, 'auto_increment' => true],
+                ['name' => 'order_number', 'type' => 'VARCHAR(100)', 'nullable' => false],
+            ],
+        ]);
+
+        $createRes->assertStatus(201)
+            ->assertJsonStructure(['success', 'message']);
+
+        // 2. Alter table by adding a column
+        $alterRes = $this->putJson('/scry/api/schema/tables/api_orders?connection=sqlite', [
+            'add_columns' => [
+                ['name' => 'total_amount', 'type' => 'DECIMAL(10,2)', 'nullable' => true],
+            ],
+        ]);
+
+        $alterRes->assertStatus(200)
+            ->assertJsonStructure(['success', 'message', 'statements_executed']);
+
+        // 3. Create Index on table
+        $indexRes = $this->postJson('/scry/api/tables/api_orders/indexes?connection=sqlite', [
+            'name' => 'idx_order_num',
+            'columns' => ['order_number'],
+            'type' => 'unique',
+        ]);
+
+        $indexRes->assertStatus(201)
+            ->assertJsonStructure(['success', 'message']);
+
+        // 4. Drop Index
+        $dropIndexRes = $this->deleteJson('/scry/api/tables/api_orders/indexes/idx_order_num?connection=sqlite');
+        $dropIndexRes->assertStatus(200);
+
+        // 5. Drop Table
+        $dropRes = $this->deleteJson('/scry/api/tables/api_orders?connection=sqlite');
+        $dropRes->assertStatus(200);
+    }
 }

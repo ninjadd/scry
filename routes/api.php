@@ -48,11 +48,20 @@ Route::group([
     // Tables & Rows DDL
     Route::get('/tables', [ApiController::class, 'tables'])->name('tables');
     Route::post('/tables', [ApiController::class, 'createTable'])->name('tables.create');
+    Route::post('/schema/tables', [ApiController::class, 'createTable'])->name('schema.tables.create');
+    Route::put('/schema/tables/{table}', [ApiController::class, 'alterTable'])->name('schema.tables.alter');
+    Route::put('/tables/{table}/alter', [ApiController::class, 'alterTable'])->name('tables.alter');
     Route::post('/tables/copy', [ApiController::class, 'copyTable'])->name('tables.copy');
     Route::put('/tables/{table}/rename', [ApiController::class, 'renameTable'])->name('tables.rename');
     Route::delete('/tables/{table}', [ApiController::class, 'dropTable'])->name('tables.drop');
     Route::post('/tables/{table}/truncate', [ApiController::class, 'truncateTable'])->name('tables.truncate');
     Route::post('/tables/{table}/optimize', [ApiController::class, 'optimizeTable'])->name('tables.optimize');
+
+    // Index & Foreign Key Management Routes
+    Route::post('/tables/{table}/indexes', [ApiController::class, 'createIndex'])->name('tables.indexes.create');
+    Route::delete('/tables/{table}/indexes/{index}', [ApiController::class, 'dropIndex'])->name('tables.indexes.drop');
+    Route::post('/tables/{table}/foreign-keys', [ApiController::class, 'createForeignKey'])->name('tables.foreign_keys.create');
+    Route::delete('/tables/{table}/foreign-keys/{fk}', [ApiController::class, 'dropForeignKey'])->name('tables.foreign_keys.drop');
 
     Route::get('/schema/full', [ApiController::class, 'fullSchema'])->name('schema.full');
     Route::get('/schema/relationships', [ApiController::class, 'schemaRelationships'])->name('schema.relationships');
