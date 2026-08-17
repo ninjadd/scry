@@ -6,9 +6,6 @@ class ExportService
 {
     /**
      * Export dataset to CSV string format.
-     *
-     * @param array $rows
-     * @return string
      */
     public function exportCsv(array $rows): string
     {
@@ -43,9 +40,6 @@ class ExportService
 
     /**
      * Stream dataset to CSV directly to output handle.
-     *
-     * @param array $rows
-     * @param resource|null $outputHandle
      */
     public function streamCsv(array $rows, $outputHandle = null): void
     {
@@ -74,18 +68,10 @@ class ExportService
 
     /**
      * Export dataset to SQL INSERT statement dump string.
-     *
-     * @param string $table
-     * @param array $rows
-     * @param string $driver
-     * @return string
      */
-    public function exportSql(string $table, array $rows, string $driver = 'mysql'): string
+    public function exportSql(string $table, array $rows, string $driver = 'mysql', array $options = []): string
     {
-        if (empty($rows)) {
-            return "-- No records to export for table {$table}\n";
-        }
-
+        $includeDrop = !empty($options['drop_table']);
         $openQuote = match ($driver) {
             'sqlsrv' => '[',
             'mysql', 'mariadb' => '`',
@@ -97,14 +83,24 @@ class ExportService
             default => '"',
         };
 
+        $sql = "-- Scry Database Dump for table {$openQuote}{$table}{$closeQuote}\n";
+        $sql .= "-- Driver: {$driver}\n";
+        $sql .= "-- Generated: " . date('Y-m-d H:i:s') . "\n\n";
+
+        if ($includeDrop) {
+            $sql .= "DROP TABLE IF EXISTS {$openQuote}{$table}{$closeQuote};\n\n";
+        }
+
+        if (empty($rows)) {
+            $sql .= "-- No records to export for table {$table}\n";
+            return $sql;
+        }
+
         $firstRow = (array) $rows[0];
         $columns = array_keys($firstRow);
 
         $escapedColumns = array_map(fn($col) => "{$openQuote}{$col}{$closeQuote}", $columns);
         $columnsSql = implode(', ', $escapedColumns);
-
-        $sql = "-- Scry Database Dump for table {$openQuote}{$table}{$closeQuote}\n";
-        $sql .= "-- Driver: {$driver}\n\n";
 
         foreach ($rows as $row) {
             $rowArray = (array) $row;
@@ -115,11 +111,11 @@ class ExportService
 
                 if ($val === null) {
                     $values[] = 'NULL';
-                } else if (is_bool($val)) {
+                } elseif (is_bool($val)) {
                     $values[] = $val ? 'TRUE' : 'FALSE';
-                } else if (is_numeric($val)) {
+                } elseif (is_numeric($val)) {
                     $values[] = $val;
-                } else if (is_array($val) || is_object($val)) {
+                } elseif (is_array($val) || is_object($val)) {
                     $jsonStr = addslashes(json_encode($val));
                     $values[] = "'{$jsonStr}'";
                 } else {
@@ -137,10 +133,6 @@ class ExportService
 
     /**
      * Export dataset to XML format.
-     *
-     * @param string $table
-     * @param array $rows
-     * @return string
      */
     public function exportXml(string $table, array $rows): string
     {
@@ -158,5 +150,18 @@ class ExportService
 
         $xml .= "</table>\n";
         return $xml;
+    }
+
+    /**
+     * Export dataset to JSON format.
+     */
+    public function exportJson(string $table, array $rows): string
+    {
+        return json_encode([
+            'table' => $table,
+            'exported_at' => date('Y-m-d H:i:s'),
+            'count' => count($rows),
+            'data' => array_map(fn($r) => (array) $r, $rows),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 }

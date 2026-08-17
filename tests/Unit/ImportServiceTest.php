@@ -50,4 +50,23 @@ class ImportServiceTest extends TestCase
         $this->assertEquals(2, $res['inserted_rows']);
         $this->assertEquals(2, \DB::table('csv_test')->count());
     }
+
+    public function test_import_sql_rolls_back_on_syntax_error(): void
+    {
+        Schema::create('sql_import_test', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique();
+        });
+
+        $sql = "
+            INSERT INTO sql_import_test (name) VALUES ('Alpha');
+            INSERT INTO INVALID_TABLE_NAME_XYZ (name) VALUES ('Beta');
+        ";
+
+        $res = $this->importService->importSql($sql, 'sqlite');
+
+        $this->assertFalse($res['success']);
+        $this->assertFalse($res['transaction_committed']);
+        $this->assertEquals(0, \DB::table('sql_import_test')->count()); // rolled back!
+    }
 }
