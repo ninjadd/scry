@@ -77,7 +77,7 @@
 
       <div v-else class="border scry-border rounded-xl overflow-hidden shadow-lg scry-bg-card">
         <div class="px-4 py-2 bg-pink-500/5 border-b scry-border text-[11px] scry-text-muted flex items-center justify-between font-mono">
-          <span>💡 Click any row to open the side edit drawer.</span>
+          <span>Click any row to open the side edit drawer.</span>
           <span>Click column header to sort</span>
         </div>
 

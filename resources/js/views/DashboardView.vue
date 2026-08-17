@@ -101,8 +101,8 @@
 
       <!-- Quick Developer Shortcuts -->
       <div class="scry-bg-card border scry-border rounded-xl p-6 shadow-sm">
-        <h3 class="text-sm font-semibold scry-text-main mb-3 flex items-center space-x-2">
-          <span>⚡ Quick Actions</span>
+        <h3 class="text-sm font-semibold scry-text-main flex items-center space-x-2 mb-3">
+          <span>Quick Actions</span>
         </h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <router-link

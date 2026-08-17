@@ -161,9 +161,9 @@
                 :key="c.name"
                 class="flex items-center justify-between py-0.5 border-b border-slate-500/10 text-[11px]"
               >
-                <div class="flex items-center space-x-1">
-                  <span v-if="c.is_primary" class="text-amber-500 font-bold">🔑</span>
-                  <span v-else-if="c.is_foreign_key" class="text-sky-500 font-bold">🔗</span>
+                <div class="flex items-center space-x-1.5">
+                  <span v-if="c.is_primary" class="text-[9px] font-mono font-bold px-1 rounded scry-badge-sulphur">PK</span>
+                  <span v-else-if="c.is_foreign_key" class="text-[9px] font-mono font-bold px-1 rounded scry-badge-pale-blue">FK</span>
                   <span :class="c.is_primary ? 'font-bold scry-text-main' : 'scry-text-muted'">{{ c.name }}</span>
                 </div>
                 <span class="text-[10px] text-slate-400 dark:text-slate-500">{{ c.data_type || c.type }}</span>

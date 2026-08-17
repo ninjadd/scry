@@ -90,7 +90,7 @@
           <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div class="text-xs font-mono scry-text-muted flex items-center space-x-2">
               <span v-if="executionTimeMs !== null" class="px-2.5 py-0.5 rounded scry-badge-glaucous font-bold">
-                ⚡ {{ executionTimeMs }} ms
+                {{ executionTimeMs }} ms
               </span>
               <span v-if="resultsCount !== null" class="px-2 py-0.5 rounded scry-badge-pale-blue font-bold">
                 {{ resultsCount }} row(s)

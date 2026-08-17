@@ -10,7 +10,7 @@
 
 ---
 
-## 📖 Introduction
+## Introduction
 
 **Scry** is a high-performance, reactive, Vue 3-powered database manager and visual workbench for Laravel applications. It brings desktop-class database administration tools—such as visual DDL designers, Monaco SQL console, Query-by-Example (QBE) builders, and interactive Mermaid.js ERD diagrams—directly into your web browser.
 
@@ -18,83 +18,83 @@ Designed as an embedded developer tool for Laravel, Scry automatically discovers
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Features & Workbench Capabilities](#-features--workbench-capabilities)
-  - [1. Monaco SQL Console & Execution Metrics](#1-monaco-sql-console--execution-metrics)
+- [Features and Workbench Capabilities](#features-and-workbench-capabilities)
+  - [1. Monaco SQL Console and Execution Metrics](#1-monaco-sql-console-and-execution-metrics)
   - [2. Visual Query-by-Example (QBE) Builder](#2-visual-query-by-example-qbe-builder)
   - [3. Interactive Mermaid.js ERD Visualizer](#3-interactive-mermaidjs-erd-visualizer)
   - [4. Global Cross-Table Search](#4-global-cross-table-search)
-  - [5. Server Process Monitor & Health Advisor](#5-server-process-monitor--health-advisor)
-  - [6. Streaming Data Import & Export](#6-streaming-data-import--export)
-  - [7. Visual Table Designer & DDL Blueprint Manager](#7-visual-table-designer--ddl-blueprint-manager)
-- [Supported Database Drivers](#-supported-database-drivers)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Security & Gate Authorization](#-security--gate-authorization)
-- [Quickstart & Local Verification](#-quickstart--local-verification)
-- [Multi-Driver Docker Compose Environment](#-multi-driver-docker-compose-environment)
-- [Running Automated Tests](#-running-automated-tests)
-- [License](#-license)
+  - [5. Server Process Monitor and Health Advisor](#5-server-process-monitor-and-health-advisor)
+  - [6. Streaming Data Import and Export](#6-streaming-data-import-and-export)
+  - [7. Visual Table Designer and DDL Blueprint Manager](#7-visual-table-designer-and-ddl-blueprint-manager)
+- [Supported Database Drivers](#supported-database-drivers)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Security and Gate Authorization](#security-and-gate-authorization)
+- [Quickstart and Local Verification](#quickstart-and-local-verification)
+- [Multi-Driver Docker Compose Environment](#multi-driver-docker-compose-environment)
+- [Running Automated Tests](#running-automated-tests)
+- [License](#license)
 
 ---
 
-## ⚡ Features & Workbench Capabilities
+## Features and Workbench Capabilities
 
-### 1. Monaco SQL Console & Execution Metrics
+### 1. Monaco SQL Console and Execution Metrics
 - **Full Monaco SQL Editor:** Syntax highlighting, code folding, bracket matching, autocomplete, and shortcut execution (`Cmd+Enter` / `Ctrl+Enter`).
 - **Execution Timing:** Real-time query execution duration badge measured in milliseconds (`ms`) alongside affected row counts.
-- **Persistent History & Bookmarks:** Local execution history drawer with search, timestamp tracking, and saved query bookmarks.
+- **Persistent History and Bookmarks:** Local execution history drawer with search, timestamp tracking, and saved query bookmarks.
 - **Dual Result Viewer:** Toggle between an interactive sortable tabular data grid (with column sorting and instant CSV export) and a formatted JSON viewer.
 
 ### 2. Visual Query-by-Example (QBE) Builder
 - **Multi-Table Visual Joins:** Configure `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN`, and `FULL OUTER JOIN` without writing manual SQL.
-- **Filtering & Aggregations:** Drag-and-drop WHERE criteria with comparison operators (`=`, `!=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`) and aggregate functions (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`).
+- **Filtering and Aggregations:** Drag-and-drop WHERE criteria with comparison operators (`=`, `!=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`) and aggregate functions (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`).
 - **Dialect-Aware Live SQL:** Real-time statement preview that automatically adapts quote wrapping (backticks for MySQL/MariaDB, double quotes for Postgres/SQLite, square brackets for SQL Server) and paging limits.
 - **One-Click Hand-Off:** Execute queries directly in place or transfer them seamlessly into the Monaco SQL Console for further refinement.
 
 ### 3. Interactive Mermaid.js ERD Visualizer
 - **Automated Schema Relationship Discovery:** Inspects primary keys, unique constraints, and foreign key relationships across all configured database engines.
 - **Dynamic Canvas Controls:** Interactive zoom in/out/reset, mouse wheel zooming, drag/pan canvas, and instant table name search filter.
-- **Export Utilities:** One-click downloads to **SVG** and high-resolution **PNG**, or copy raw Mermaid.js syntax to the clipboard.
+- **Export Utilities:** One-click downloads to SVG and high-resolution PNG, or copy raw Mermaid.js syntax to the clipboard.
 - **Schema Cards Mode:** Alternate card view displaying row counts, column types, primary keys, and foreign key references.
 
 ### 4. Global Cross-Table Search
 - **Driver-Wide Column Discovery:** Automatically scans `VARCHAR`, `TEXT`, `JSON`, `UUID`, and string columns across all tables simultaneously.
 - **Memory-Safe Batch Querying:** Prevents memory exhaustion by executing bounded batch queries across large databases.
-- **Match Highlighting & Scoping:** Grouped table results with per-table match counters and keyword highlighting. Scope search to specific tables via the table filter dropdown.
+- **Match Highlighting and Scoping:** Grouped table results with per-table match counters and keyword highlighting. Scope search to specific tables via the table filter dropdown.
 
-### 5. Server Process Monitor & Health Advisor
+### 5. Server Process Monitor and Health Advisor
 - **Live Process Listing:** Inspect active threads and long-running queries across all engines (`SHOW FULL PROCESSLIST`, `pg_stat_activity`, `sys.dm_exec_requests`).
 - **Safe Query Termination:** Cancel hung threads (`KILL {pid}`, `pg_terminate_backend({pid})`) with a typed confirmation modal.
-- **Connection Health & Auto-Polling:** Live connection latency badge (`Online (0.42ms)`) with auto-refresh intervals (3s, 5s, 10s, 30s).
+- **Connection Health and Auto-Polling:** Live connection latency badge (`Online (0.42ms)`) with auto-refresh intervals (3s, 5s, 10s, 30s).
 - **Tuning Diagnostics:** Automated optimization suggestions for indexing, query performance, and server configuration.
 
-### 6. Streaming Data Import & Export
-- **Multi-Format Streaming Export:** Export tables to **CSV**, **SQL Dump** (with optional `DROP TABLE IF EXISTS`), **XML**, and **JSON** without memory bottlenecks.
+### 6. Streaming Data Import and Export
+- **Multi-Format Streaming Export:** Export tables to CSV, SQL Dump (with optional `DROP TABLE IF EXISTS`), XML, and JSON without memory bottlenecks.
 - **Transactional Imports:** Multi-statement `.sql` and `.csv` imports executed inside isolated database transactions (`DB::beginTransaction()` / `DB::rollBack()`). Catches syntax and constraint violations with statement failure reporting.
 
-### 7. Visual Table Designer & DDL Blueprint Manager
+### 7. Visual Table Designer and DDL Blueprint Manager
 - **Visual Column Designer:** Configure column names, data types, precision, nullability, auto-increments, and default values.
 - **Column Presets:** One-click presets for standard columns (`+ id (PK)`, `+ timestamps`, `+ uuid`).
-- **Index & Foreign Key Managers:** Dedicated modals to create and drop secondary indexes, unique constraints, and foreign key constraints.
-- **Safe Drop & Truncate:** Danger confirmation modals requiring typing the exact table name to eliminate accidental data loss.
+- **Index and Foreign Key Managers:** Dedicated modals to create and drop secondary indexes, unique constraints, and foreign key constraints.
+- **Safe Drop and Truncate:** Danger confirmation modals requiring typing the exact table name to eliminate accidental data loss.
 
 ---
 
-## 🗄️ Supported Database Drivers
+## Supported Database Drivers
 
 | Database Driver | Schema Introspection | Monaco SQL Console | QBE Builder | Mermaid ERD | Process Monitor | DDL / Alter Table |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **MySQL (8.0+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **MariaDB (10.4+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **PostgreSQL (12+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **SQLite (3.8+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **SQL Server (2019+)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **MySQL (8.0+)** | Supported | Supported | Supported | Supported | Supported | Supported |
+| **MariaDB (10.4+)** | Supported | Supported | Supported | Supported | Supported | Supported |
+| **PostgreSQL (12+)** | Supported | Supported | Supported | Supported | Supported | Supported |
+| **SQLite (3.8+)** | Supported | Supported | Supported | Supported | Supported | Supported |
+| **SQL Server (2019+)** | Supported | Supported | Supported | Supported | Supported | Supported |
 
 ---
 
-## 📦 Installation
+## Installation
 
 Install the package via Composer:
 
@@ -116,7 +116,7 @@ php artisan vendor:publish --tag=scry-config
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 In `config/scry.php`:
 
@@ -154,7 +154,7 @@ return [
 
 ---
 
-## 🔒 Security & Gate Authorization
+## Security and Gate Authorization
 
 > [!CAUTION]
 > **STRICT SECURITY WARNING**
@@ -177,7 +177,7 @@ public function boot(): void
 
 ---
 
-## 🚀 Quickstart & Local Verification
+## Quickstart and Local Verification
 
 1. Start your local development server:
 
@@ -195,7 +195,7 @@ http://localhost:8000/scry
 
 ---
 
-## 🐳 Multi-Driver Docker Compose Environment
+## Multi-Driver Docker Compose Environment
 
 A multi-driver Docker Compose setup is bundled for integration testing across all database engines:
 
@@ -213,7 +213,7 @@ php artisan migrate:fresh --seed --database=sqlite
 
 ---
 
-## 🧪 Running Automated Tests
+## Running Automated Tests
 
 Run the full PHPUnit test suite:
 
@@ -233,6 +233,6 @@ All 47 tests (157 assertions) cover:
 
 ---
 
-## 📄 License
+## License
 
 This package is open-sourced software licensed under the **[MIT License](LICENSE)**.

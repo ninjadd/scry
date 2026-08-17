@@ -342,7 +342,7 @@
             <div class="flex items-center space-x-2">
               <span class="text-xs font-bold uppercase tracking-wider scry-text-subtle">Execution Output</span>
               <span v-if="executionTimeMs !== null" class="text-xs font-mono scry-text-muted">
-                (⚡ {{ executionTimeMs }}ms)
+                ({{ executionTimeMs }} ms)
               </span>
             </div>
 
