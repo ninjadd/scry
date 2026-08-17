@@ -191,6 +191,61 @@ abstract class AbstractInspector implements DatabaseInspector
         ];
     }
 
+    public function getSchemaRelationships(): array
+    {
+        $tables = $this->getTables();
+        $tableSchemas = [];
+        $relationships = [];
+
+        foreach ($tables as $t) {
+            $tableName = $t['name'] ?? null;
+            if (!$tableName) {
+                continue;
+            }
+
+            $schema = $this->getTableSchema($tableName);
+            $fks = $schema['foreign_keys'] ?? [];
+            $cols = $schema['columns'] ?? [];
+            $pks = array_column(
+                array_filter($cols, fn($c) => !empty($c['is_primary'])),
+                'name'
+            );
+
+            $tableSchemas[] = [
+                'name' => $tableName,
+                'rows' => $t['rows'] ?? 0,
+                'size' => $t['size'] ?? '0 B',
+                'columns' => $cols,
+                'primary_keys' => $pks,
+                'foreign_keys' => $fks,
+            ];
+
+            foreach ($fks as $fk) {
+                $foreignTable = $fk['foreign_table_name'] ?? null;
+                $foreignColumn = $fk['foreign_column_name'] ?? null;
+                $localColumn = $fk['column_name'] ?? null;
+
+                if ($foreignTable && $foreignColumn && $localColumn) {
+                    $relationships[] = [
+                        'from_table' => $tableName,
+                        'from_column' => $localColumn,
+                        'to_table' => $foreignTable,
+                        'to_column' => $foreignColumn,
+                        'cardinality' => 'many-to-one',
+                        'constraint_name' => $fk['constraint_name'] ?? "fk_{$tableName}_{$localColumn}",
+                    ];
+                }
+            }
+        }
+
+        return [
+            'tables' => $tableSchemas,
+            'relationships' => $relationships,
+            'total_tables' => count($tableSchemas),
+            'total_relationships' => count($relationships),
+        ];
+    }
+
     protected function wrapIdentifier(string $name): string
     {
         return '"' . str_replace('"', '""', $name) . '"';

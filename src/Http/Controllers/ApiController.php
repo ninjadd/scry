@@ -700,6 +700,27 @@ class ApiController extends Controller
     }
 
     /**
+     * GET /scry/api/schema/relationships
+     * Fetch complete schema relationships, primary keys, and foreign key mappings for ERD.
+     */
+    public function schemaRelationships(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $inspector = $this->manager->forConnection($connection);
+            $data = $inspector->getSchemaRelationships();
+            $data['connection'] = $connection ?? config('database.default');
+
+            return response()->json($data);
+        } catch (UnsupportedDriverException $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * GET /scry/api/tables/{table}/schema
      */
     public function schema(string $table, Request $request): JsonResponse

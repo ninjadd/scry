@@ -96,4 +96,22 @@ class SqliteInspectorTest extends TestCase
         $this->assertTrue($dropped);
         $this->assertFalse(Schema::hasTable('test_users_renamed'));
     }
+
+    public function test_get_schema_relationships_returns_tables_and_relationships(): void
+    {
+        $relData = $this->inspector->getSchemaRelationships();
+
+        $this->assertArrayHasKey('tables', $relData);
+        $this->assertArrayHasKey('relationships', $relData);
+        $this->assertArrayHasKey('total_tables', $relData);
+        $this->assertArrayHasKey('total_relationships', $relData);
+
+        $tableNames = array_column($relData['tables'], 'name');
+        $this->assertContains('test_users', $tableNames);
+        $this->assertContains('test_posts', $tableNames);
+
+        $this->assertGreaterThanOrEqual(1, count($relData['relationships']));
+        $this->assertEquals('test_posts', $relData['relationships'][0]['from_table']);
+        $this->assertEquals('test_users', $relData['relationships'][0]['to_table']);
+    }
 }

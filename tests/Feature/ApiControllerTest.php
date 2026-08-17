@@ -82,4 +82,12 @@ class ApiControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['term', 'results']);
     }
+
+    public function test_get_schema_relationships_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/schema/relationships?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['tables', 'relationships', 'total_tables', 'total_relationships', 'connection']);
+    }
 }
