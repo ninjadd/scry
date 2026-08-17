@@ -82,7 +82,7 @@
     </div>
 
     <!-- Main Canvas View -->
-    <div v-else class="flex-1 overflow-hidden scry-bg-card border scry-border rounded-xl shadow-sm flex flex-col relative">
+    <div v-show="!loading" class="flex-1 overflow-hidden scry-bg-card border scry-border rounded-xl shadow-sm flex flex-col relative">
       <div v-if="filteredTables.length === 0" class="py-16 text-center text-xs scry-text-muted font-mono">
         No tables matching "{{ searchQuery }}".
       </div>
@@ -222,14 +222,14 @@ const loadSchema = async () => {
       const data = await res.json();
       tables.value = data.tables || [];
       relationships.value = data.relationships || [];
-      await nextTick();
-      await renderMermaidDiagram();
     }
   } catch (err) {
     console.error(err);
     toast.error('Failed to load schema relationships.');
   } finally {
     loading.value = false;
+    await nextTick();
+    await renderMermaidDiagram();
   }
 };
 
@@ -243,7 +243,8 @@ const generateMermaidSyntax = () => {
     syntax += `    ${cleanName} {\n`;
     for (const c of t.columns.slice(0, 15)) {
       const cleanCol = c.name.replace(/[^a-zA-Z0-9_]/g, '_');
-      const cleanType = (c.data_type || 'string').replace(/[^a-zA-Z0-9_]/g, '_');
+      const rawType = c.data_type || c.type || 'string';
+      const cleanType = rawType.replace(/[^a-zA-Z0-9_]/g, '_') || 'string';
       const pkBadge = c.is_primary ? ' PK' : (c.is_foreign_key ? ' FK' : '');
       syntax += `        ${cleanType} ${cleanCol}${pkBadge}\n`;
     }
@@ -255,7 +256,7 @@ const generateMermaidSyntax = () => {
     if (visibleTableNames.has(r.from_table) && visibleTableNames.has(r.to_table)) {
       const fromClean = r.from_table.replace(/[^a-zA-Z0-9_]/g, '_');
       const toClean = r.to_table.replace(/[^a-zA-Z0-9_]/g, '_');
-      const label = r.from_column.replace(/[^a-zA-Z0-9_]/g, '_');
+      const label = (r.from_column || 'fk').replace(/[^a-zA-Z0-9_]/g, '_');
       // Many-to-one relationship
       syntax += `    ${toClean} ||--o{ ${fromClean} : "${label}"\n`;
     }
@@ -265,6 +266,7 @@ const generateMermaidSyntax = () => {
 };
 
 const renderMermaidDiagram = async () => {
+  await nextTick();
   if (!mermaidOutput.value || filteredTables.value.length === 0) return;
 
   const isDark = document.documentElement.classList.contains('dark');
@@ -285,7 +287,7 @@ const renderMermaidDiagram = async () => {
     mermaidOutput.value.innerHTML = svg;
   } catch (err) {
     console.error('Mermaid render error:', err);
-    mermaidOutput.value.innerHTML = `<div class="p-4 text-xs font-mono text-rose-500">Failed to render Mermaid ERD graph.</div>`;
+    mermaidOutput.value.innerHTML = `<div class="p-4 text-xs font-mono text-rose-500">Failed to render Mermaid ERD graph: ${err.message}</div>`;
   }
 };
 
@@ -393,8 +395,12 @@ const exportPng = () => {
 
 onMounted(loadSchema);
 watch(() => store.currentConnection, loadSchema);
+watch(activeView, async (newVal) => {
+  if (newVal === 'diagram') {
+    await renderMermaidDiagram();
+  }
+});
 watch(searchQuery, async () => {
-  await nextTick();
   await renderMermaidDiagram();
 });
 </script>
