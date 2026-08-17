@@ -17,11 +17,14 @@ Route::group([
     Route::post('/databases', [ApiController::class, 'createDatabase'])->name('databases.create');
     Route::delete('/databases', [ApiController::class, 'dropDatabase'])->name('databases.drop');
 
-    // Server Stats & Tuning
+    // Server Stats & Tuning & Processes
     Route::get('/server/stats', [ApiController::class, 'serverStats'])->name('server.stats');
     Route::get('/server/tuning', [ApiController::class, 'tuningSuggestions'])->name('server.tuning');
     Route::get('/server/slow-queries', [ApiController::class, 'slowQueries'])->name('server.slow_queries');
+    Route::get('/server/processes', [ApiController::class, 'processes'])->name('server.processes');
     Route::post('/server/kill-process', [ApiController::class, 'killProcess'])->name('server.kill_process');
+    Route::delete('/server/processes/{id}', [ApiController::class, 'killProcessById'])->name('server.processes.kill');
+    Route::get('/server/health', [ApiController::class, 'healthCheck'])->name('server.health');
 
     // Routines & Triggers
     Route::get('/views', [ApiController::class, 'views'])->name('views');

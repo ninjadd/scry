@@ -27,6 +27,8 @@ const routes = [
   { path: '/query', name: 'query', component: QueryRunnerView },
   { path: '/console', name: 'console', component: QueryRunnerView },
   { path: '/tuning', name: 'tuning', component: ServerTuningView },
+  { path: '/processes', name: 'processes', component: ServerTuningView },
+  { path: '/monitor', name: 'monitor', component: ServerTuningView },
   { path: '/search', name: 'search', component: GlobalSearchView },
   { path: '/users', name: 'users', component: UserManagementView },
   { path: '/routines', name: 'routines', component: RoutinesView },

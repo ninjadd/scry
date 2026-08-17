@@ -229,4 +229,46 @@ class ServerTuningAdvisor
             'message' => "Process {$pid} terminated successfully.",
         ];
     }
+
+    /**
+     * Check database connection health and response latency.
+     */
+    public function checkHealth(?string $connectionName = null): array
+    {
+        $connectionName = $connectionName ?? config('database.default');
+        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+
+        $startTime = microtime(true);
+        try {
+            $connection = $this->dbManager->connection($connectionName);
+            $connection->getPdo();
+            $latencyMs = round((microtime(true) - $startTime) * 1000, 2);
+
+            return [
+                'status' => 'healthy',
+                'connection' => $connectionName,
+                'driver' => $driver,
+                'latency_ms' => $latencyMs,
+                'timestamp' => now()->toIso8601String(),
+            ];
+        } catch (\Throwable $e) {
+            $latencyMs = round((microtime(true) - $startTime) * 1000, 2);
+            return [
+                'status' => 'unhealthy',
+                'connection' => $connectionName,
+                'driver' => $driver,
+                'error' => $e->getMessage(),
+                'latency_ms' => $latencyMs,
+                'timestamp' => now()->toIso8601String(),
+            ];
+        }
+    }
+
+    /**
+     * Alias for getSlowQueries to match /server/processes route standard.
+     */
+    public function getProcesses(?string $connectionName = null): array
+    {
+        return $this->getSlowQueries($connectionName);
+    }
 }

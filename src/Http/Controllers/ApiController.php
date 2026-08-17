@@ -571,6 +571,7 @@ class ApiController extends Controller
 
     /**
      * GET /scry/api/server/slow-queries
+     * GET /scry/api/server/processes
      */
     public function slowQueries(Request $request): JsonResponse
     {
@@ -580,6 +581,14 @@ class ApiController extends Controller
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * GET /scry/api/server/processes
+     */
+    public function processes(Request $request): JsonResponse
+    {
+        return $this->slowQueries($request);
     }
 
     /**
@@ -595,6 +604,37 @@ class ApiController extends Controller
             return response()->json($this->tuningAdvisor->killProcess($pid, $connection));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * DELETE /scry/api/server/processes/{id}
+     */
+    public function killProcessById(string $id, Request $request): JsonResponse
+    {
+        $pid = (int) $id;
+        $connection = $request->input('connection') ?? $request->query('connection');
+
+        try {
+            return response()->json($this->tuningAdvisor->killProcess($pid, $connection));
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * GET /scry/api/server/health
+     */
+    public function healthCheck(Request $request): JsonResponse
+    {
+        $connection = $request->query('connection');
+
+        try {
+            $health = $this->tuningAdvisor->checkHealth($connection);
+            $status = $health['status'] === 'healthy' ? 200 : 503;
+            return response()->json($health, $status);
+        } catch (Throwable $e) {
+            return response()->json(['status' => 'unhealthy', 'error' => $e->getMessage()], 503);
         }
     }
 

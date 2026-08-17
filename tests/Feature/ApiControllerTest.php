@@ -101,4 +101,20 @@ class ApiControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['term', 'results', 'total_matches', 'matching_tables_count']);
     }
+
+    public function test_get_server_processes_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/server/processes?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['driver', 'processes']);
+    }
+
+    public function test_get_server_health_endpoint(): void
+    {
+        $response = $this->getJson('/scry/api/server/health?connection=sqlite');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['status', 'connection', 'driver', 'latency_ms']);
+    }
 }
