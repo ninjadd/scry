@@ -27,7 +27,14 @@ use Symfony\Component\Console\Input\ArgvInput;
 $application = new Application('Scry Database Manager', '1.0.0');
 
 $serveCommand = new ServeCommand();
-$application->add($serveCommand);
+
+if (method_exists($application, 'addCommand')) {
+    $application->addCommand($serveCommand);
+} elseif (method_exists($application, 'addCommands')) {
+    $application->addCommands([$serveCommand]);
+} else {
+    $application->add($serveCommand);
+}
 
 // Set 'serve' as the default command so running `scry` directly runs the server
 $application->setDefaultCommand('serve', true);
