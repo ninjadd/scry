@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+$autoloadPaths = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+];
+
+$loaded = false;
+foreach ($autoloadPaths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $loaded = true;
+        break;
+    }
+}
+
+if (!$loaded) {
+    fwrite(STDERR, "Unable to locate Composer autoloader. Please run 'composer install'.\n");
+    exit(1);
+}
+
+use Scry\Cli\ServeCommand;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+
+$application = new Application('Scry Database Manager', '1.0.0');
+
+$serveCommand = new ServeCommand();
+$application->add($serveCommand);
+
+// Set 'serve' as the default command so running `scry` directly runs the server
+$application->setDefaultCommand('serve', true);
+
+$application->run();
