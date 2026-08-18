@@ -23,7 +23,7 @@ class GlobalSearchService
      */
     public function search(string $term, ?string $connectionName = null, array $options = []): array
     {
-        $connectionName = $connectionName ?? config('database.default');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
         $inspector = $this->explorerManager->forConnection($connectionName);
         $allTables = $inspector->getTables();
         $db = $this->dbManager->connection($connectionName);

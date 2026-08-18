@@ -133,9 +133,9 @@ class StandaloneKernel
         $this->manager = new DatabaseExplorerManager($container);
         $sqlRunner = new SqlRunner($this->manager, $dbManager);
         $exportService = new ExportService();
-        $importService = new ImportService($dbManager);
+        $importService = new ImportService($this->manager, $dbManager);
         $searchService = new GlobalSearchService($this->manager, $dbManager);
-        $tuningAdvisor = new ServerTuningAdvisor($dbManager);
+        $tuningAdvisor = new ServerTuningAdvisor($this->manager, $dbManager);
 
         $this->controller = new ApiController(
             $this->manager,
@@ -278,7 +278,7 @@ class StandaloneKernel
             if (($path === '/tables' || $path === '/schema/tables') && $method === 'POST') return $this->controller->createTable($request);
             if ($path === '/tables/copy' && $method === 'POST') return $this->controller->copyTable($request);
             if ($path === '/schema/full' && $method === 'GET') return $this->controller->fullSchema($request);
-            if ($path === '/schema/relationships' && $method === 'GET') return $this->controller->schemaRelationships($request);
+            if (($path === '/schema/relationships' || $path === '/erd') && $method === 'GET') return $this->controller->schemaRelationships($request);
 
             // Parameterized Table Routes
             if (preg_match('#^/schema/tables/([^/]+)$#', $path, $m) && $method === 'PUT') return $this->controller->alterTable($m[1], $request);
@@ -304,7 +304,7 @@ class StandaloneKernel
             if (preg_match('#^/tables/([^/]+)$#', $path, $m) && $method === 'DELETE') return $this->controller->dropTable($m[1], $request);
 
             // SQL Execution
-            if ($path === '/sql/execute' && $method === 'POST') return $this->controller->executeSql($request);
+            if (($path === '/sql/execute' || $path === '/query/run') && $method === 'POST') return $this->controller->executeSql($request);
             if ($path === '/query' && $method === 'POST') return $this->controller->query($request);
 
             return new JsonResponse(['error' => "API route not found: [{$method}] {$path}"], 404);
@@ -337,6 +337,11 @@ class StandaloneKernel
             $cleanedUri = substr($cleanedUri, 12);
         }
 
+        // Remove query parameters if present (e.g. ?v=123)
+        if (($qPos = strpos($cleanedUri, '?')) !== false) {
+            $cleanedUri = substr($cleanedUri, 0, $qPos);
+        }
+
         $filePath = realpath($distPath . '/' . $cleanedUri);
 
         if ($filePath && str_starts_with($filePath, $distPath) && file_exists($filePath)) {
@@ -357,7 +362,9 @@ class StandaloneKernel
 
             return new SymfonyResponse(file_get_contents($filePath), 200, [
                 'Content-Type' => $mime,
-                'Cache-Control' => 'public, max-age=3600',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
             ]);
         }
 
@@ -366,7 +373,25 @@ class StandaloneKernel
 
     protected function serveSpaHtml(): SymfonyResponse
     {
-        $html = <<<'HTML'
+        $defaultConn = $this->manager->resolveConnectionName();
+        $driver = $this->manager->getDriverForConnection($defaultConn);
+        $availableConnections = $this->manager->getAvailableConnections();
+
+        $scryConfigJson = json_encode([
+            'basePath' => '/',
+            'baseApiUrl' => '/api',
+            'activeConnection' => $defaultConn,
+            'driver' => $driver,
+            'availableConnections' => $availableConnections,
+        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+
+        $distPath = dirname(__DIR__, 2) . '/resources/dist';
+        $appJsPath = $distPath . '/app.js';
+        $appCssPath = $distPath . '/app.css';
+        $appJsVersion = file_exists($appJsPath) ? filemtime($appJsPath) : time();
+        $appCssVersion = file_exists($appCssPath) ? filemtime($appCssPath) : time();
+
+        $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
@@ -379,14 +404,11 @@ class StandaloneKernel
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <script>
-        window.ScryConfig = {
-            basePath: "/",
-            baseApiUrl: "/api",
-        };
+        window.ScryConfig = {$scryConfigJson};
     </script>
 
-    <script type="module" src="/app.js"></script>
-    <link rel="stylesheet" href="/app.css">
+    <script type="module" src="/app.js?v={$appJsVersion}"></script>
+    <link rel="stylesheet" href="/app.css?v={$appCssVersion}">
 </head>
 <body class="h-full font-sans antialiased overflow-hidden">
     <div id="app"></div>
@@ -396,6 +418,9 @@ HTML;
 
         return new SymfonyResponse($html, 200, [
             'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 }
