@@ -23,7 +23,7 @@ class SqlRunner
      */
     public function execute(string $query, ?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
         $connection = $this->dbManager->connection($connectionName);
 
         $trimmedQuery = ltrim($query);

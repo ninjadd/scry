@@ -10,10 +10,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    @php
+        $explorer = app(\Scry\DatabaseExplorerManager::class);
+        $defaultConn = $explorer->resolveConnectionName();
+        $driver = $explorer->getDriverForConnection($defaultConn);
+        $availableConns = $explorer->getAvailableConnections();
+    @endphp
     <script>
         window.ScryConfig = {
             basePath: "/{{ config('scry.path', 'scry') }}",
             baseApiUrl: "/{{ config('scry.path', 'scry') }}/api",
+            activeConnection: "{{ $defaultConn }}",
+            driver: "{{ $driver }}",
+            availableConnections: @json($availableConns),
         };
     </script>
 

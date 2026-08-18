@@ -3,11 +3,13 @@
 namespace Scry\Services;
 
 use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
+use Scry\DatabaseExplorerManager;
 use Throwable;
 
 class ImportService
 {
     public function __construct(
+        protected DatabaseExplorerManager $explorerManager,
         protected LaravelDatabaseManager $dbManager
     ) {}
 
@@ -17,7 +19,7 @@ class ImportService
      */
     public function importSql(string $sqlContent, ?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
         $connection = $this->dbManager->connection($connectionName);
         
         $statements = $this->parseSqlStatements($sqlContent);

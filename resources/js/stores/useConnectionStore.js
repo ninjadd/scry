@@ -2,9 +2,25 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
 export const useConnectionStore = defineStore('connection', () => {
-  const currentConnection = ref(localStorage.getItem('scry-connection') || '');
-  const availableConnections = ref([]);
-  const driver = ref('');
+  const configActiveConn = window.ScryConfig?.activeConnection || null;
+  const configAvailableConns = window.ScryConfig?.availableConnections || [];
+  const storedConn = localStorage.getItem('scry-connection');
+
+  // Validate stored connection against available connections if known
+  let initialConn = configActiveConn;
+  if (!initialConn) {
+    if (storedConn && configAvailableConns.length > 0 && configAvailableConns.includes(storedConn)) {
+      initialConn = storedConn;
+    } else if (configAvailableConns.length > 0) {
+      initialConn = configAvailableConns[0];
+    } else {
+      initialConn = storedConn || 'default';
+    }
+  }
+
+  const currentConnection = ref(initialConn);
+  const availableConnections = ref(configAvailableConns.length > 0 ? configAvailableConns : (initialConn ? [initialConn] : []));
+  const driver = ref(window.ScryConfig?.driver || '');
   const serverStats = ref(null);
   const loadingStats = ref(false);
 
@@ -55,6 +71,10 @@ export const useConnectionStore = defineStore('connection', () => {
         const data = await res.json();
         serverStats.value = data;
         driver.value = data.driver || driver.value;
+        if (data.connection && data.connection !== currentConnection.value) {
+          currentConnection.value = data.connection;
+          localStorage.setItem('scry-connection', data.connection);
+        }
         if (data.available_connections) {
           setAvailableConnections(data.available_connections, data.connection);
         }

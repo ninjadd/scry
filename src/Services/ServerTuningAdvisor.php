@@ -3,10 +3,12 @@
 namespace Scry\Services;
 
 use Illuminate\Database\DatabaseManager as LaravelDatabaseManager;
+use Scry\DatabaseExplorerManager;
 
 class ServerTuningAdvisor
 {
     public function __construct(
+        protected DatabaseExplorerManager $explorerManager,
         protected LaravelDatabaseManager $dbManager
     ) {}
 
@@ -15,8 +17,8 @@ class ServerTuningAdvisor
      */
     public function analyze(?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
-        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
+        $driver = $this->explorerManager->getDriverForConnection($connectionName);
 
         if (!in_array($driver, ['mysql', 'mariadb'])) {
             return [
