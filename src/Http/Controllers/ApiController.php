@@ -841,8 +841,11 @@ class ApiController extends Controller
         $connection = $request->query('connection');
 
         try {
-            $inspector = $this->manager->forConnection($connection);
+            $activeConn = $this->manager->resolveConnectionName($connection);
+            $inspector = $this->manager->forConnection($activeConn);
             $stats = $inspector->getServerStats();
+            $stats['connection'] = $activeConn;
+            $stats['driver'] = $this->manager->getDriverForConnection($activeConn);
             $stats['available_connections'] = $this->manager->getAvailableConnections();
 
             return response()->json($stats);
@@ -988,8 +991,8 @@ class ApiController extends Controller
         $connection = $request->query('connection');
 
         try {
-            $inspector = $this->manager->forConnection($connection);
-            $activeConn = $connection ?? config('database.default');
+            $activeConn = $this->manager->resolveConnectionName($connection);
+            $inspector = $this->manager->forConnection($activeConn);
 
             return response()->json([
                 'connection' => $activeConn,

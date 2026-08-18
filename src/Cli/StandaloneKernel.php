@@ -39,25 +39,29 @@ class StandaloneKernel
     {
         $this->capsule = new Capsule();
 
+        $container = $this->capsule->getContainer();
+        \Illuminate\Container\Container::setInstance($container);
+
+        $defaultConn = array_key_first($this->connections) ?? 'default';
+        $container['config']->set('database.default', $defaultConn);
+
         foreach ($this->connections as $name => $config) {
             $this->capsule->addConnection($config, $name);
+            $container['config']->set("database.connections.{$name}", $config);
+
+            $driver = $config['driver'] ?? null;
+            if ($driver && !isset($this->connections[$driver])) {
+                $this->capsule->addConnection($config, $driver);
+                $container['config']->set("database.connections.{$driver}", $config);
+            }
         }
 
         $this->capsule->setAsGlobal();
         $this->capsule->bootEloquent();
 
-        $container = $this->capsule->getContainer();
-        \Illuminate\Container\Container::setInstance($container);
-
         $dbManager = $this->capsule->getDatabaseManager();
         $container->instance(LaravelDatabaseManager::class, $dbManager);
         $container->instance('db', $dbManager);
-
-        $defaultConn = array_key_first($this->connections) ?? 'default';
-        $container['config']->set('database.default', $defaultConn);
-        foreach ($this->connections as $name => $config) {
-            $container['config']->set("database.connections.{$name}", $config);
-        }
 
         // Bind ResponseFactory if needed
         if (class_exists(ResponseFactory::class)) {

@@ -71,7 +71,7 @@ const props = defineProps({ connection: String, isDark: Boolean });
 const emit = defineEmits(['update-driver', 'tables-loaded', 'connections-loaded']);
 const baseApiUrl = inject('baseApiUrl');
 
-const currentConnection = ref(props.connection || 'pgsql');
+const currentConnection = ref(props.connection || '');
 const tables = ref([]);
 const loading = ref(true);
 const search = ref('');
@@ -83,10 +83,15 @@ const filteredTables = computed(() => {
 
 const loadTables = async (conn) => {
   loading.value = true;
-  currentConnection.value = conn || currentConnection.value;
+  if (conn) currentConnection.value = conn;
   try {
-    const res = await fetch(`${baseApiUrl}/tables?connection=${currentConnection.value}`);
+    const connParam = currentConnection.value ? `connection=${encodeURIComponent(currentConnection.value)}` : '';
+    const url = connParam ? `${baseApiUrl}/tables?${connParam}` : `${baseApiUrl}/tables`;
+    const res = await fetch(url);
     const data = await res.json();
+    if (data.connection) {
+      currentConnection.value = data.connection;
+    }
     tables.value = data.tables || [];
     emit('update-driver', data.driver);
     emit('tables-loaded', data.tables);
