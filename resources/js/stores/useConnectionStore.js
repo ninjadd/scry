@@ -2,9 +2,9 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
 export const useConnectionStore = defineStore('connection', () => {
-  const currentConnection = ref(localStorage.getItem('scry-connection') || 'pgsql');
-  const availableConnections = ref(['pgsql', 'mysql', 'mariadb', 'sqlite', 'sqlsrv']);
-  const driver = ref('pgsql');
+  const currentConnection = ref(localStorage.getItem('scry-connection') || '');
+  const availableConnections = ref([]);
+  const driver = ref('');
   const serverStats = ref(null);
   const loadingStats = ref(false);
 
@@ -15,7 +15,8 @@ export const useConnectionStore = defineStore('connection', () => {
    */
   const scryFetch = async (endpoint, options = {}) => {
     const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${baseApiUrl}${endpoint}${separator}connection=${currentConnection.value}`;
+    const connParam = currentConnection.value ? `connection=${encodeURIComponent(currentConnection.value)}` : '';
+    const url = connParam ? `${baseApiUrl}${endpoint}${separator}${connParam}` : `${baseApiUrl}${endpoint}`;
 
     const headers = {
       'Content-Type': 'application/json',
@@ -33,10 +34,13 @@ export const useConnectionStore = defineStore('connection', () => {
     await fetchServerStats();
   };
 
-  const setAvailableConnections = (conns) => {
+  const setAvailableConnections = (conns, activeConn = null) => {
     if (conns && Array.isArray(conns) && conns.length > 0) {
       availableConnections.value = conns;
-      if (!conns.includes(currentConnection.value)) {
+      if (activeConn && conns.includes(activeConn)) {
+        currentConnection.value = activeConn;
+        localStorage.setItem('scry-connection', activeConn);
+      } else if (!currentConnection.value || !conns.includes(currentConnection.value)) {
         currentConnection.value = conns[0];
         localStorage.setItem('scry-connection', conns[0]);
       }
@@ -52,7 +56,7 @@ export const useConnectionStore = defineStore('connection', () => {
         serverStats.value = data;
         driver.value = data.driver || driver.value;
         if (data.available_connections) {
-          setAvailableConnections(data.available_connections);
+          setAvailableConnections(data.available_connections, data.connection);
         }
       }
     } catch (err) {

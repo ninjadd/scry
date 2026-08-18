@@ -85,6 +85,34 @@ class DatabaseExplorerManager extends Manager
     }
 
     /**
+     * Resolve and validate connection name, falling back gracefully to configured defaults.
+     *
+     * @param string|null $connectionName
+     * @return string
+     */
+    public function resolveConnectionName(?string $connectionName = null): string
+    {
+        $allConnections = $this->container['config']->get('database.connections', []);
+
+        if ($connectionName !== null && isset($allConnections[$connectionName])) {
+            return $connectionName;
+        }
+
+        $default = $this->container['config']->get('scry.connection')
+            ?? $this->container['config']->get('database.default');
+
+        if ($default && isset($allConnections[$default])) {
+            return $default;
+        }
+
+        if (!empty($allConnections)) {
+            return (string) array_key_first($allConnections);
+        }
+
+        return $default ?? 'default';
+    }
+
+    /**
      * Resolve DatabaseInspector instance for a specific connection name.
      * Defaults to the host application's default connection if null.
      *
@@ -104,10 +132,7 @@ class DatabaseExplorerManager extends Manager
      */
     public function forConnection(?string $connectionName = null): DatabaseInspector
     {
-        $connectionName = $connectionName
-            ?? $this->container['config']->get('scry.connection')
-            ?? $this->container['config']->get('database.default');
-
+        $connectionName = $this->resolveConnectionName($connectionName);
         $driverName = $this->getDriverForConnection($connectionName);
         $connection = $this->container->make(LaravelDatabaseManager::class)->connection($connectionName);
 
