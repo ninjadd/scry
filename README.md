@@ -39,6 +39,7 @@ Scry supports **PostgreSQL**, **MySQL**, **MariaDB**, **SQLite**, and **SQL Serv
   - [Global Installation](#global-installation)
   - [CLI Command Examples](#cli-command-examples)
   - [Available CLI Options](#available-cli-options)
+  - [Standalone Server Authentication](#standalone-server-authentication)
 - [Laravel Package Installation](#laravel-package-installation)
 - [Configuration](#configuration)
 - [Security and Gate Authorization](#security-and-gate-authorization)
@@ -147,8 +148,11 @@ scry mysql://root:secret@127.0.0.1:3306/ecommerce_db
 # 5. Connect using explicit connection flags
 scry --driver=pgsql --host=127.0.0.1 --database=my_db --username=postgres --password=secret
 
-# 6. Specify custom port and host without opening browser automatically
-scry ./app.db --port=9000 --host=0.0.0.0 --no-open
+# 6. Specify a custom port without opening the browser automatically
+scry ./app.db --port=9000 --no-open
+
+# 7. Bind to a non-loopback interface (requires --allow-remote; see Authentication below)
+scry ./app.db --host=0.0.0.0 --allow-remote
 ```
 
 ### Available CLI Options
@@ -164,6 +168,17 @@ scry ./app.db --port=9000 --host=0.0.0.0 --no-open
 | `--password` | - | `null` | Database password |
 | `--env` | `-e` | `null` | Path to a custom `.env` configuration file |
 | `--no-open` | - | `false` | Prevent automatically launching the default browser |
+| `--allow-remote` | - | `false` | Required alongside `--host` for any interface other than `127.0.0.1` / `localhost` / `::1`. Without it, `scry` refuses to start rather than bind to a network-reachable address. |
+
+### Standalone Server Authentication
+
+The standalone CLI server has no login system, so instead it protects itself with a random per-session token:
+
+- On startup, `scry` generates a token and prints it in the banner (`Auth Token: ...`).
+- Unless `--no-open` is passed, it auto-opens your browser at a URL with the token embedded, which the workbench then stores as an HTTP-only cookie for the rest of the session — no further action needed.
+- Every API request must carry the token (via that cookie, the URL's `?token=` query parameter, or an `X-Scry-Token` header) or it's rejected with `401 Unauthorized`. This applies even on `127.0.0.1`, and covers dynamically registering new connections through the workbench.
+- If you used `--no-open`, or need to call the API directly (`curl`, scripts), copy the printed token and append `?token=<token>` to the URL, or send it as `X-Scry-Token`.
+- `--host`/`--allow-remote` control *whether the server binds to a reachable address at all*; the token controls *who's allowed to use it once it does*. Both apply together — `--allow-remote` does not relax the token requirement.
 
 ---
 
@@ -222,6 +237,15 @@ return [
     'middleware' => [
         'web',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Max Query Rows
+    |--------------------------------------------------------------------------
+    | Upper bound on rows returned for a single read query, to guard against
+    | unbounded result sets exhausting memory.
+    */
+    'max_query_rows' => (int) env('SCRY_MAX_QUERY_ROWS', 10000),
 ];
 ```
 
@@ -233,7 +257,7 @@ return [
 > **STRICT SECURITY WARNING**
 > Scry provides administrative database access (raw query execution, DDL alteration, process cancellation). By default, Scry is locked strictly to `local` and `testing` environments. Do not expose Scry in production environments without proper authorization gates.
 
-To authorize users in non-local environments, define an authorization gate using `Scry::auth()` inside your `AppServiceProvider` or `AuthServiceProvider`:
+This section covers the **Laravel package route** (`/scry/...`, mounted into your app). To authorize users in non-local environments, define an authorization gate using `Scry::auth()` inside your `AppServiceProvider` or `AuthServiceProvider`:
 
 ```php
 use Illuminate\Http\Request;
@@ -247,6 +271,10 @@ public function boot(): void
     });
 }
 ```
+
+If `Scry::auth()` isn't set and `allowed_environments` is widened to include anything outside `local`/`testing`, Scry logs a warning the first time it grants access that way, so the exposure isn't silent.
+
+The **standalone CLI server** (`scry` command) is a separate code path and is *not* governed by `Scry::auth()` or `allowed_environments` at all — see [Standalone Server Authentication](#standalone-server-authentication) above for how it protects itself instead.
 
 ---
 

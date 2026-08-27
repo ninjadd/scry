@@ -12,6 +12,7 @@ use Scry\Services\GlobalSearchService;
 use Scry\Services\ImportService;
 use Scry\Services\ServerTuningAdvisor;
 use Scry\Services\SqlRunner;
+use Scry\Support\SqlSafety;
 use PDOException;
 use Throwable;
 
@@ -100,16 +101,6 @@ class ApiController extends Controller
 
         $colDefs = [];
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
 
         foreach ($cols as $col) {
             $colName = $col['name'] ?? null;
@@ -117,6 +108,7 @@ class ApiController extends Controller
                 continue;
             }
 
+            $quotedCol = SqlSafety::quoteIdentifier($driver, $colName);
             $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
             $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
             $isPk = !empty($col['is_primary']);
@@ -124,33 +116,34 @@ class ApiController extends Controller
 
             if ($driver === 'sqlite') {
                 if ($isPk && $isAuto) {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} INTEGER PRIMARY KEY AUTOINCREMENT";
+                    $colDefs[] = "{$quotedCol} INTEGER PRIMARY KEY AUTOINCREMENT";
                 } elseif ($isPk) {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} PRIMARY KEY";
+                    $colDefs[] = "{$quotedCol} {$type} PRIMARY KEY";
                 } else {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}";
+                    $colDefs[] = "{$quotedCol} {$type} {$nullable}";
                 }
             } elseif ($driver === 'pgsql') {
                 if ($isPk && $isAuto) {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} BIGSERIAL PRIMARY KEY";
+                    $colDefs[] = "{$quotedCol} BIGSERIAL PRIMARY KEY";
                 } elseif ($isPk) {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} PRIMARY KEY";
+                    $colDefs[] = "{$quotedCol} {$type} PRIMARY KEY";
                 } else {
-                    $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}";
+                    $colDefs[] = "{$quotedCol} {$type} {$nullable}";
                 }
             } elseif ($driver === 'sqlsrv') {
                 $auto = $isAuto ? ' IDENTITY(1,1)' : '';
                 $pk = $isPk ? ' PRIMARY KEY' : '';
-                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type}{$auto}{$pk} {$nullable}";
+                $colDefs[] = "{$quotedCol} {$type}{$auto}{$pk} {$nullable}";
             } else {
                 // mysql, mariadb
                 $auto = $isAuto ? ' AUTO_INCREMENT' : '';
                 $pk = $isPk ? ' PRIMARY KEY' : '';
-                $colDefs[] = "{$openQuote}{$colName}{$closeQuote} {$type} {$nullable}{$auto}{$pk}";
+                $colDefs[] = "{$quotedCol} {$type} {$nullable}{$auto}{$pk}";
             }
         }
 
-        $sql = "CREATE TABLE {$openQuote}{$tableName}{$closeQuote} (\n  " . implode(",\n  ", $colDefs) . "\n);";
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $tableName);
+        $sql = "CREATE TABLE {$quotedTable} (\n  " . implode(",\n  ", $colDefs) . "\n);";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);
@@ -175,16 +168,7 @@ class ApiController extends Controller
     {
         $connection = $request->input('connection') ?? $request->query('connection');
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
 
         $addColumns = $request->input('add_columns', []);
         $dropColumns = $request->input('drop_columns', []);
@@ -198,10 +182,13 @@ class ApiController extends Controller
                 $colName = $col['name'] ?? null;
                 $type = strtoupper($col['type'] ?? 'VARCHAR(255)');
                 $nullable = !empty($col['nullable']) ? 'NULL' : 'NOT NULL';
-                $default = isset($col['default']) && $col['default'] !== '' ? "DEFAULT '{$col['default']}'" : '';
+                $default = isset($col['default']) && $col['default'] !== ''
+                    ? 'DEFAULT ' . SqlSafety::quoteLiteral((string) $col['default'])
+                    : '';
 
                 if ($colName) {
-                    $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} ADD {$openQuote}{$colName}{$closeQuote} {$type} {$nullable} {$default};";
+                    $quotedCol = SqlSafety::quoteIdentifier($driver, $colName);
+                    $sql = "ALTER TABLE {$quotedTable} ADD {$quotedCol} {$type} {$nullable} {$default};";
                     $this->sqlRunner->execute($sql, $connection);
                     $executedSql[] = $sql;
                 }
@@ -210,7 +197,8 @@ class ApiController extends Controller
             // Process Drop Columns
             foreach ($dropColumns as $colName) {
                 if ($colName) {
-                    $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} DROP COLUMN {$openQuote}{$colName}{$closeQuote};";
+                    $quotedCol = SqlSafety::quoteIdentifier($driver, $colName);
+                    $sql = "ALTER TABLE {$quotedTable} DROP COLUMN {$quotedCol};";
                     $this->sqlRunner->execute($sql, $connection);
                     $executedSql[] = $sql;
                 }
@@ -223,12 +211,18 @@ class ApiController extends Controller
 
                 if ($from && $to) {
                     if ($driver === 'sqlsrv') {
-                        $sql = "EXEC sp_rename '{$table}.{$from}', '{$to}', 'COLUMN';";
+                        $target = SqlSafety::quoteLiteral("{$table}.{$from}");
+                        $newName = SqlSafety::quoteLiteral($to);
+                        $sql = "EXEC sp_rename {$target}, {$newName}, 'COLUMN';";
                     } elseif (in_array($driver, ['mysql', 'mariadb'])) {
                         $type = $ren['type'] ?? 'VARCHAR(255)';
-                        $sql = "ALTER TABLE `{$table}` CHANGE `{$from}` `{$to}` {$type};";
+                        $quotedFrom = SqlSafety::quoteIdentifier($driver, $from);
+                        $quotedTo = SqlSafety::quoteIdentifier($driver, $to);
+                        $sql = "ALTER TABLE {$quotedTable} CHANGE {$quotedFrom} {$quotedTo} {$type};";
                     } else {
-                        $sql = "ALTER TABLE \"{$table}\" RENAME COLUMN \"{$from}\" TO \"{$to}\";";
+                        $quotedFrom = SqlSafety::quoteIdentifier($driver, $from);
+                        $quotedTo = SqlSafety::quoteIdentifier($driver, $to);
+                        $sql = "ALTER TABLE {$quotedTable} RENAME COLUMN {$quotedFrom} TO {$quotedTo};";
                     }
                     $this->sqlRunner->execute($sql, $connection);
                     $executedSql[] = $sql;
@@ -380,25 +374,17 @@ class ApiController extends Controller
         $type = strtolower($request->input('type', 'index'));
 
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
 
-        $colsQuoted = implode(', ', array_map(fn($c) => "{$openQuote}{$c}{$closeQuote}", $columns));
+        $colsQuoted = implode(', ', array_map(fn($c) => SqlSafety::quoteIdentifier($driver, $c), $columns));
         $prefix = match ($type) {
             'unique' => 'CREATE UNIQUE INDEX',
             'fulltext' => ($driver === 'mysql' || $driver === 'mariadb') ? 'CREATE FULLTEXT INDEX' : 'CREATE INDEX',
             default => 'CREATE INDEX',
         };
 
-        $sql = "{$prefix} {$openQuote}{$indexName}{$closeQuote} ON {$openQuote}{$table}{$closeQuote} ({$colsQuoted});";
+        $quotedIndex = SqlSafety::quoteIdentifier($driver, $indexName);
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
+        $sql = "{$prefix} {$quotedIndex} ON {$quotedTable} ({$colsQuoted});";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);
@@ -423,21 +409,13 @@ class ApiController extends Controller
     {
         $connection = $request->input('connection') ?? $request->query('connection');
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
+        $quotedIndex = SqlSafety::quoteIdentifier($driver, $index);
 
         $sql = match ($driver) {
-            'mysql', 'mariadb' => "ALTER TABLE `{$table}` DROP INDEX `{$index}`;",
-            'sqlsrv' => "DROP INDEX {$openQuote}{$index}{$closeQuote} ON {$openQuote}{$table}{$closeQuote};",
-            default => "DROP INDEX IF EXISTS {$openQuote}{$index}{$closeQuote};",
+            'mysql', 'mariadb' => "ALTER TABLE {$quotedTable} DROP INDEX {$quotedIndex};",
+            'sqlsrv' => "DROP INDEX {$quotedIndex} ON {$quotedTable};",
+            default => "DROP INDEX IF EXISTS {$quotedIndex};",
         };
 
         try {
@@ -480,18 +458,13 @@ class ApiController extends Controller
         $constraintName = $request->input('constraint_name') ?: "fk_{$table}_{$localCol}";
 
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
+        $quotedConstraint = SqlSafety::quoteIdentifier($driver, $constraintName);
+        $quotedLocalCol = SqlSafety::quoteIdentifier($driver, $localCol);
+        $quotedForeignTable = SqlSafety::quoteIdentifier($driver, $foreignTable);
+        $quotedForeignCol = SqlSafety::quoteIdentifier($driver, $foreignCol);
 
-        $sql = "ALTER TABLE {$openQuote}{$table}{$closeQuote} ADD CONSTRAINT {$openQuote}{$constraintName}{$closeQuote} FOREIGN KEY ({$openQuote}{$localCol}{$closeQuote}) REFERENCES {$openQuote}{$foreignTable}{$closeQuote} ({$openQuote}{$foreignCol}{$closeQuote}) ON DELETE {$onDelete} ON UPDATE {$onUpdate};";
+        $sql = "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} FOREIGN KEY ({$quotedLocalCol}) REFERENCES {$quotedForeignTable} ({$quotedForeignCol}) ON DELETE {$onDelete} ON UPDATE {$onUpdate};";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);
@@ -516,21 +489,13 @@ class ApiController extends Controller
     {
         $connection = $request->input('connection') ?? $request->query('connection');
         $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-        $openQuote = match ($driver) {
-            'sqlsrv' => '[',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
-        $closeQuote = match ($driver) {
-            'sqlsrv' => ']',
-            'mysql', 'mariadb' => '`',
-            default => '"',
-        };
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
+        $quotedFk = SqlSafety::quoteIdentifier($driver, $fk);
 
         $sql = match ($driver) {
-            'mysql', 'mariadb' => "ALTER TABLE `{$table}` DROP FOREIGN KEY `{$fk}`;",
+            'mysql', 'mariadb' => "ALTER TABLE {$quotedTable} DROP FOREIGN KEY {$quotedFk};",
             'sqlite' => "PRAGMA foreign_keys = OFF;", // SQLite foreign keys are table-definition bound
-            default => "ALTER TABLE {$openQuote}{$table}{$closeQuote} DROP CONSTRAINT {$openQuote}{$fk}{$closeQuote};",
+            default => "ALTER TABLE {$quotedTable} DROP CONSTRAINT {$quotedFk};",
         };
 
         try {
@@ -565,12 +530,14 @@ class ApiController extends Controller
         $connection = $request->input('connection');
         $user = $request->input('username');
         $host = $request->input('host');
-        $pwd = addslashes($request->input('password'));
+        $password = $request->input('password');
 
-        $sql = "CREATE USER '{$user}'@'{$host}' IDENTIFIED BY '{$pwd}';";
+        $quotedUser = SqlSafety::quoteLiteral($user);
+        $quotedHost = SqlSafety::quoteLiteral($host);
+        $sql = "CREATE USER {$quotedUser}@{$quotedHost} IDENTIFIED BY ?;";
 
         try {
-            $res = $this->sqlRunner->execute($sql, $connection);
+            $res = $this->sqlRunner->execute($sql, $connection, [$password]);
             if (isset($res['error'])) {
                 return response()->json(['error' => $res['error']], 422);
             }
@@ -590,11 +557,19 @@ class ApiController extends Controller
      */
     public function manageUserPrivileges(Request $request): JsonResponse
     {
+        $allowedPrivileges = [
+            'ALL', 'ALL PRIVILEGES', 'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE',
+            'DROP', 'ALTER', 'INDEX', 'REFERENCES', 'EXECUTE', 'CREATE VIEW', 'SHOW VIEW',
+            'CREATE ROUTINE', 'ALTER ROUTINE', 'TRIGGER', 'EVENT', 'LOCK TABLES',
+            'GRANT OPTION', 'CREATE TEMPORARY TABLES',
+        ];
+
         $request->validate([
             'username' => 'required|string',
             'host' => 'required|string',
             'action' => 'required|in:grant,revoke',
             'privileges' => 'required|array',
+            'privileges.*' => 'string|in:' . implode(',', $allowedPrivileges),
             'database' => 'nullable|string',
             'connection' => 'nullable|string',
         ]);
@@ -603,13 +578,16 @@ class ApiController extends Controller
         $user = $request->input('username');
         $host = $request->input('host');
         $action = strtoupper($request->input('action'));
-        $privs = implode(', ', $request->input('privileges'));
+        $privs = implode(', ', array_map('strtoupper', $request->input('privileges')));
         $db = $request->input('database', '*');
-        $target = $db === '*' ? '*.*' : "`{$db}`.*";
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $target = $db === '*' ? '*.*' : SqlSafety::quoteIdentifier($driver, $db) . '.*';
+        $quotedUser = SqlSafety::quoteLiteral($user);
+        $quotedHost = SqlSafety::quoteLiteral($host);
 
         $sql = $action === 'GRANT'
-            ? "GRANT {$privs} ON {$target} TO '{$user}'@'{$host}';"
-            : "REVOKE {$privs} ON {$target} FROM '{$user}'@'{$host}';";
+            ? "GRANT {$privs} ON {$target} TO {$quotedUser}@{$quotedHost};"
+            : "REVOKE {$privs} ON {$target} FROM {$quotedUser}@{$quotedHost};";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);
@@ -679,7 +657,10 @@ class ApiController extends Controller
         $event = $request->input('event');
         $body = $request->input('body');
 
-        $sql = "CREATE TRIGGER `{$name}` {$timing} {$event} ON `{$table}` FOR EACH ROW BEGIN\n{$body}\nEND;";
+        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $quotedName = SqlSafety::quoteIdentifier($driver, $name);
+        $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
+        $sql = "CREATE TRIGGER {$quotedName} {$timing} {$event} ON {$quotedTable} FOR EACH ROW BEGIN\n{$body}\nEND;";
 
         try {
             $res = $this->sqlRunner->execute($sql, $connection);
@@ -930,18 +911,19 @@ class ApiController extends Controller
     {
         $connection = $request->query('connection');
         $format = strtolower($request->query('format', 'csv'));
+        $safeTable = $this->sanitizeFilenameComponent($table);
 
         try {
             $inspector = $this->manager->forConnection($connection);
             $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
-            
+
             $rowsData = $inspector->getPaginatedRows($table, 1, 5000);
             $rows = $rowsData['data'] ?? [];
 
             if ($format === 'csv') {
                 return response()->streamDownload(function () use ($rows) {
                     $this->exportService->streamCsv($rows);
-                }, "{$table}_export.csv", [
+                }, "{$safeTable}_export.csv", [
                     'Content-Type' => 'text/csv; charset=UTF-8',
                     'Cache-Control' => 'no-cache, private',
                 ]);
@@ -951,23 +933,23 @@ class ApiController extends Controller
                 case 'csv':
                     $content = $this->exportService->exportCsv($rows);
                     $contentType = 'text/csv';
-                    $filename = "{$table}_export.csv";
+                    $filename = "{$safeTable}_export.csv";
                     break;
                 case 'sql':
                     $content = $this->exportService->exportSql($table, $rows, $driver);
                     $contentType = 'text/plain';
-                    $filename = "{$table}_dump.sql";
+                    $filename = "{$safeTable}_dump.sql";
                     break;
                 case 'xml':
                     $content = $this->exportService->exportXml($table, $rows);
                     $contentType = 'application/xml';
-                    $filename = "{$table}_export.xml";
+                    $filename = "{$safeTable}_export.xml";
                     break;
                 case 'json':
                 default:
                     $content = json_encode($rows, JSON_PRETTY_PRINT);
                     $contentType = 'application/json';
-                    $filename = "{$table}_export.json";
+                    $filename = "{$safeTable}_export.json";
                     break;
             }
 
@@ -981,6 +963,17 @@ class ApiController extends Controller
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Reduce a user-controlled string to a safe component for a Content-Disposition
+     * filename, so it can't be used to inject header/CRLF characters or path segments.
+     */
+    protected function sanitizeFilenameComponent(string $name): string
+    {
+        $safe = preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
+
+        return $safe !== '' ? $safe : 'export';
     }
 
     /**

@@ -24,11 +24,16 @@ use Illuminate\Http\Request;
 use Scry\Cli\ConnectionConfig;
 use Scry\Cli\StandaloneKernel;
 
-// Load connections from environment / serialized state if passed
+// Load connections from a private temp file (preferred, avoids putting
+// credentials in the process environment) or, for backwards compatibility,
+// a raw JSON env var.
+$connectionsFile = getenv('SCRY_CONNECTIONS_FILE');
 $connectionsJson = getenv('SCRY_CONNECTIONS_JSON');
 $connections = [];
 
-if (!empty($connectionsJson)) {
+if (!empty($connectionsFile) && file_exists($connectionsFile)) {
+    $connections = json_decode(file_get_contents($connectionsFile), true) ?: [];
+} elseif (!empty($connectionsJson)) {
     $connections = json_decode($connectionsJson, true) ?: [];
 }
 
@@ -37,7 +42,10 @@ if (empty($connections)) {
     $connections = ConnectionConfig::resolveConnections($target);
 }
 
-$kernel = new StandaloneKernel($connections);
+$token = getenv('SCRY_AUTH_TOKEN') ?: null;
+$debug = filter_var(getenv('SCRY_DEBUG') ?: false, FILTER_VALIDATE_BOOLEAN);
+
+$kernel = new StandaloneKernel($connections, $token, $debug);
 $request = Request::capture();
 $response = $kernel->handle($request);
 

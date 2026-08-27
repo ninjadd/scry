@@ -19,9 +19,10 @@ class SqlRunner
      *
      * @param string $query
      * @param string|null $connectionName
+     * @param array $bindings Optional `?` placeholder bindings for values that shouldn't be interpolated into the SQL string.
      * @return array
      */
-    public function execute(string $query, ?string $connectionName = null): array
+    public function execute(string $query, ?string $connectionName = null, array $bindings = []): array
     {
         $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
         $connection = $this->dbManager->connection($connectionName);
@@ -35,7 +36,18 @@ class SqlRunner
             $isReadQuery = in_array($queryType, ['SELECT', 'EXPLAIN', 'SHOW', 'DESCRIBE', 'WITH', 'PRAGMA']);
 
             if ($isReadQuery) {
-                $results = $connection->select($query);
+                $maxRows = (int) config('scry.max_query_rows', 10000);
+                $results = [];
+                $truncated = false;
+
+                foreach ($connection->cursor($query, $bindings) as $row) {
+                    if (count($results) >= $maxRows) {
+                        $truncated = true;
+                        break;
+                    }
+                    $results[] = $row;
+                }
+
                 $executionTime = round((microtime(true) - $startTime) * 1000, 2);
 
                 $columns = [];
@@ -49,11 +61,12 @@ class SqlRunner
                     'is_read' => true,
                     'execution_time_ms' => $executionTime,
                     'row_count' => count($results),
+                    'truncated' => $truncated,
                     'columns' => $columns,
                     'data' => $results,
                 ];
             } else {
-                $affectedRows = $connection->affectingStatement($query);
+                $affectedRows = $connection->affectingStatement($query, $bindings);
                 $executionTime = round((microtime(true) - $startTime) * 1000, 2);
 
                 return [

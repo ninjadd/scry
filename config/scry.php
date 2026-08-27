@@ -52,4 +52,16 @@ return [
     */
 
     'connection' => env('SCRY_CONNECTION', null),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Max Query Rows
+    |--------------------------------------------------------------------------
+    |
+    | Upper bound on rows materialized in memory and returned for a single
+    | read query, to guard against unbounded result sets exhausting memory.
+    |
+    */
+
+    'max_query_rows' => (int) env('SCRY_MAX_QUERY_ROWS', 10000),
 ];

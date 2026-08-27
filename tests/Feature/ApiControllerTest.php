@@ -160,4 +160,71 @@ class ApiControllerTest extends TestCase
         $dropRes = $this->deleteJson('/scry/api/tables/api_orders?connection=sqlite');
         $dropRes->assertStatus(200);
     }
+
+    public function test_create_table_with_a_quote_in_the_column_name_does_not_break_out_of_the_ddl(): void
+    {
+        $response = $this->postJson('/scry/api/tables?connection=sqlite', [
+            'name' => 'api_quote_test',
+            'columns' => [
+                ['name' => 'id', 'type' => 'INTEGER', 'is_primary' => true, 'auto_increment' => true],
+                ['name' => 'weird"col', 'type' => 'VARCHAR(255)'],
+            ],
+        ]);
+
+        $response->assertStatus(201);
+
+        // The table was created with the literal (escaped) column name — proving the
+        // embedded quote didn't break out and inject a second statement — and the
+        // rest of the schema (e.g. `id`) is intact.
+        $this->assertTrue(Schema::hasTable('api_quote_test'));
+        $this->assertTrue(Schema::hasColumn('api_quote_test', 'weird"col'));
+    }
+
+    public function test_create_index_with_a_quote_in_the_index_name_does_not_break_out_of_the_ddl(): void
+    {
+        $response = $this->postJson('/scry/api/tables/api_products/indexes?connection=sqlite', [
+            'name' => 'idx_weird"name',
+            'columns' => ['title'],
+        ]);
+
+        $response->assertStatus(201);
+
+        // The api_products table (created in setUp) must still exist untouched —
+        // proving the malicious identifier didn't escape into a DROP/second statement.
+        $this->assertTrue(Schema::hasTable('api_products'));
+        $this->assertEquals(2, \DB::table('api_products')->count());
+    }
+
+    public function test_export_table_sanitizes_a_malicious_table_name_in_the_content_disposition_header(): void
+    {
+        $maliciousTable = 'weird"table';
+
+        Schema::create($maliciousTable, function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        \DB::table($maliciousTable)->insert(['name' => 'row1']);
+
+        $response = $this->get('/scry/api/export/' . rawurlencode($maliciousTable) . '?connection=sqlite&format=json');
+
+        $response->assertStatus(200);
+        $disposition = $response->headers->get('Content-Disposition');
+        $this->assertStringNotContainsString('"table', $disposition);
+        $this->assertStringContainsString('weird_table_export.json', $disposition);
+    }
+
+    public function test_manage_user_privileges_rejects_a_privilege_not_on_the_whitelist(): void
+    {
+        $response = $this->postJson('/scry/api/users/privileges?connection=sqlite', [
+            'username' => 'someuser',
+            'host' => '%',
+            'action' => 'grant',
+            'privileges' => ['SELECT', 'SHUTDOWN; DROP TABLE api_products; --'],
+        ]);
+
+        $response->assertStatus(422);
+
+        // Untouched — the malicious "privilege" never reached SqlRunner.
+        $this->assertTrue(Schema::hasTable('api_products'));
+    }
 }
