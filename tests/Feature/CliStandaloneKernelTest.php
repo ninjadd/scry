@@ -123,6 +123,24 @@ class CliStandaloneKernelTest extends TestCase
         $this->assertEquals('text/css', $cssRes->headers->get('Content-Type'));
     }
 
+    public function test_it_gates_static_assets_behind_the_auth_token_too(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, 'secret-token-123');
+
+        $unauthedReq = Request::create('/app.js', 'GET');
+        $unauthedRes = $kernel->handle($unauthedReq);
+        $this->assertEquals(401, $unauthedRes->getStatusCode());
+
+        $authedReq = Request::create('/app.js', 'GET');
+        $authedReq->cookies->set('scry_auth', 'secret-token-123');
+        $authedRes = $kernel->handle($authedReq);
+        $this->assertEquals(200, $authedRes->getStatusCode());
+        $this->assertEquals('application/javascript', $authedRes->headers->get('Content-Type'));
+    }
+
     public function test_it_handles_unknown_api_routes(): void
     {
         $req = Request::create('/api/non-existent-route', 'GET');
@@ -130,5 +148,91 @@ class CliStandaloneKernelTest extends TestCase
         $this->assertEquals(404, $res->getStatusCode());
         $data = json_decode($res->getContent(), true);
         $this->assertArrayHasKey('error', $data);
+    }
+
+    public function test_it_rejects_api_requests_without_a_token_when_auth_is_enabled(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, 'secret-token-123');
+
+        $req = Request::create('/api/databases', 'GET', ['connection' => 'default']);
+        $res = $kernel->handle($req);
+
+        $this->assertEquals(401, $res->getStatusCode());
+    }
+
+    public function test_it_rejects_a_wrong_token(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, 'secret-token-123');
+
+        $req = Request::create('/api/databases', 'GET', ['connection' => 'default', 'token' => 'wrong']);
+        $res = $kernel->handle($req);
+
+        $this->assertEquals(401, $res->getStatusCode());
+    }
+
+    public function test_it_accepts_a_valid_query_token_and_sets_a_cookie(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, 'secret-token-123');
+
+        $req = Request::create('/api/databases', 'GET', ['connection' => 'default', 'token' => 'secret-token-123']);
+        $res = $kernel->handle($req);
+
+        $this->assertEquals(200, $res->getStatusCode());
+        $cookie = $res->headers->getCookies()[0] ?? null;
+        $this->assertNotNull($cookie);
+        $this->assertEquals('scry_auth', $cookie->getName());
+        $this->assertEquals('secret-token-123', $cookie->getValue());
+        $this->assertTrue($cookie->isHttpOnly());
+    }
+
+    public function test_it_accepts_a_valid_cookie_on_a_follow_up_request(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, 'secret-token-123');
+
+        $req = Request::create('/api/databases', 'GET', ['connection' => 'default']);
+        $req->cookies->set('scry_auth', 'secret-token-123');
+        $res = $kernel->handle($req);
+
+        $this->assertEquals(200, $res->getStatusCode());
+    }
+
+    public function test_it_hides_file_and_line_on_uncaught_errors_by_default(): void
+    {
+        $req = Request::create('/api/connections', 'POST', ['name' => 'bad', 'dsn' => 'not-a-valid-dsn']);
+        $res = $this->kernel->handle($req);
+
+        $this->assertEquals(500, $res->getStatusCode());
+        $data = json_decode($res->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertArrayNotHasKey('file', $data);
+        $this->assertArrayNotHasKey('line', $data);
+    }
+
+    public function test_it_includes_file_and_line_on_uncaught_errors_when_debug_enabled(): void
+    {
+        $connections = [
+            'default' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        ];
+        $kernel = new StandaloneKernel($connections, null, true);
+
+        $req = Request::create('/api/connections', 'POST', ['name' => 'bad', 'dsn' => 'not-a-valid-dsn']);
+        $res = $kernel->handle($req);
+
+        $this->assertEquals(500, $res->getStatusCode());
+        $data = json_decode($res->getContent(), true);
+        $this->assertArrayHasKey('file', $data);
+        $this->assertArrayHasKey('line', $data);
     }
 }

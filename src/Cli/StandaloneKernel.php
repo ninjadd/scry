@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Contracts\Routing\ResponseFactory as ResponseFactoryContract;
 use Illuminate\Routing\ResponseFactory;
+use Symfony\Component\HttpFoundation\Cookie;
 use Scry\DatabaseExplorerManager;
 use Scry\Http\Controllers\ApiController;
 use Scry\Services\ExportService;
@@ -25,10 +26,16 @@ class StandaloneKernel
     protected ApiController $controller;
     protected DatabaseExplorerManager $manager;
     protected array $connections = [];
+    protected ?string $authToken;
+    protected bool $debug;
 
-    public function __construct(array $connections = [])
+    const AUTH_COOKIE = 'scry_auth';
+
+    public function __construct(array $connections = [], ?string $authToken = null, bool $debug = false)
     {
         $this->connections = $connections;
+        $this->authToken = $authToken !== '' ? $authToken : null;
+        $this->debug = $debug;
         $this->bootstrap();
     }
 
@@ -186,23 +193,78 @@ class StandaloneKernel
             }
         }
 
-        // Handle static assets
-        if ($this->isStaticAsset($uri)) {
-            return $this->serveStaticAsset($uri);
+        $isApi = str_starts_with($uri, '/api');
+
+        [$authorized, $newlyAuthorizedViaQueryToken] = $this->checkAuth($request);
+        if (!$authorized) {
+            return $this->unauthorizedResponse($isApi);
         }
 
-        // Handle API routes
-        if (str_starts_with($uri, '/api')) {
+        // Handle static assets
+        if ($this->isStaticAsset($uri)) {
+            $response = $this->serveStaticAsset($uri);
+        } elseif ($isApi) {
+            // Handle API routes
             $apiPath = substr($uri, 4);
             if (empty($apiPath)) {
                 $apiPath = '/';
             }
 
-            return $this->dispatchApi($method, $apiPath, $request);
+            $response = $this->dispatchApi($method, $apiPath, $request);
+        } else {
+            // SPA HTML fallback
+            $response = $this->serveSpaHtml();
         }
 
-        // SPA HTML fallback
-        return $this->serveSpaHtml();
+        if ($newlyAuthorizedViaQueryToken) {
+            $response->headers->setCookie(Cookie::create(self::AUTH_COOKIE, $this->authToken)
+                ->withHttpOnly(true)
+                ->withSecure(false)
+                ->withSameSite('lax')
+                ->withPath('/'));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Verify the request is authorized. Returns [authorized, wasAuthorizedViaFreshQueryToken].
+     *
+     * @return array{0: bool, 1: bool}
+     */
+    protected function checkAuth(Request $request): array
+    {
+        if ($this->authToken === null) {
+            return [true, false];
+        }
+
+        $queryToken = $request->query('token');
+        if (is_string($queryToken) && hash_equals($this->authToken, $queryToken)) {
+            return [true, true];
+        }
+
+        $cookieToken = $request->cookies->get(self::AUTH_COOKIE);
+        if (is_string($cookieToken) && hash_equals($this->authToken, $cookieToken)) {
+            return [true, false];
+        }
+
+        $headerToken = $request->headers->get('X-Scry-Token');
+        if (is_string($headerToken) && hash_equals($this->authToken, $headerToken)) {
+            return [true, false];
+        }
+
+        return [false, false];
+    }
+
+    protected function unauthorizedResponse(bool $isApi): SymfonyResponse
+    {
+        if ($isApi) {
+            return new JsonResponse(['error' => 'Unauthorized. A valid Scry auth token is required.'], 401);
+        }
+
+        return new SymfonyResponse('Unauthorized. A valid Scry auth token is required.', 401, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+        ]);
     }
 
     /**
@@ -309,11 +371,15 @@ class StandaloneKernel
 
             return new JsonResponse(['error' => "API route not found: [{$method}] {$path}"], 404);
         } catch (Throwable $e) {
-            return new JsonResponse([
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
+            error_log("Scry standalone API error: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+
+            $payload = ['error' => $e->getMessage()];
+            if ($this->debug) {
+                $payload['file'] = $e->getFile();
+                $payload['line'] = $e->getLine();
+            }
+
+            return new JsonResponse($payload, 500);
         }
     }
 
