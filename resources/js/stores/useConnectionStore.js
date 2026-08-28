@@ -56,7 +56,12 @@ export const useConnectionStore = defineStore('connection', () => {
       if (activeConn && conns.includes(activeConn)) {
         currentConnection.value = activeConn;
         localStorage.setItem('scry-connection', activeConn);
-      } else if (!currentConnection.value || !conns.includes(currentConnection.value)) {
+      } else if (!currentConnection.value) {
+        // Only fall back to the first available connection when nothing was
+        // previously selected. A transient connectivity-probe blip in
+        // getAvailableConnections() can briefly drop the active connection from
+        // `conns` — that's not a reason to reassign the user's session to an
+        // unrelated connection.
         currentConnection.value = conns[0];
         localStorage.setItem('scry-connection', conns[0]);
       }

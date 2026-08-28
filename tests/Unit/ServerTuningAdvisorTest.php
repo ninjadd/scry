@@ -41,4 +41,39 @@ class ServerTuningAdvisorTest extends TestCase
         $this->assertEquals('sqlite', $res['driver']);
         $this->assertArrayHasKey('latency_ms', $res);
     }
+
+    public function test_check_health_honors_scry_connection_over_database_default(): void
+    {
+        config(['database.connections.secondary' => [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]]);
+        config(['scry.connection' => 'secondary']);
+
+        // No explicit connection passed — should resolve via scry.connection, not database.default.
+        $res = $this->advisor->checkHealth();
+
+        $this->assertEquals('secondary', $res['connection']);
+        $this->assertEquals('healthy', $res['status']);
+    }
+
+    public function test_get_slow_queries_honors_scry_connection_over_database_default(): void
+    {
+        config(['database.connections.secondary' => [
+            'driver' => 'pgsql',
+            'host' => '127.0.0.1',
+            'port' => '5432',
+            'database' => 'scry_pg_db',
+            'username' => 'postgres',
+            'password' => 'postgres',
+        ]]);
+        config(['scry.connection' => 'secondary']);
+
+        // database.default is sqlite; scry.connection is pgsql — the reported driver
+        // must reflect the resolved scry.connection, not database.default.
+        $res = $this->advisor->getSlowQueries();
+
+        $this->assertEquals('pgsql', $res['driver']);
+    }
 }

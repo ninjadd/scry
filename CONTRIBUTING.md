@@ -32,9 +32,10 @@ Please ensure a welcoming, professional, and respectful community environment fo
    npm install
    ```
 4. **Make Your Changes**: Ensure code follows PSR-12 standards.
-5. **Run the Test Suite**: All PHPUnit tests must pass before submitting:
+5. **Run the Test Suite**: All PHPUnit and Vitest tests must pass before submitting:
    ```bash
    composer test
+   npm run test:js
    ```
 6. **Rebuild Frontend Assets** (if Vue components were edited):
    ```bash
@@ -55,6 +56,7 @@ Please ensure a welcoming, professional, and respectful community environment fo
 ```bash
 cd scry-package
 ./vendor/bin/phpunit
+npm run test:js
 ```
 
 ### Multi-Database Docker Environment

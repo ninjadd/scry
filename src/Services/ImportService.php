@@ -161,7 +161,7 @@ class ImportService
      */
     public function importCsv(string $table, string $csvContent, ?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
         $connection = $this->dbManager->connection($connectionName);
 
         $stream = fopen('php://temp', 'r+');

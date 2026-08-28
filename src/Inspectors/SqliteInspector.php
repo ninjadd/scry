@@ -207,6 +207,11 @@ class SqliteInspector extends AbstractInspector
         ], $rows);
     }
 
+    public function truncateTable(string $table): bool
+    {
+        return $this->connection->statement("DELETE FROM " . $this->wrapIdentifier($table));
+    }
+
     public function optimizeTable(string $table): bool
     {
         return $this->connection->statement("VACUUM;");

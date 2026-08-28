@@ -116,8 +116,8 @@ class ServerTuningAdvisor
      */
     public function getSlowQueries(?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
-        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
+        $driver = $this->explorerManager->getDriverForConnection($connectionName);
         $connection = $this->dbManager->connection($connectionName);
 
         $processes = [];
@@ -212,8 +212,8 @@ class ServerTuningAdvisor
      */
     public function killProcess(int $pid, ?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
-        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
+        $driver = $this->explorerManager->getDriverForConnection($connectionName);
         $connection = $this->dbManager->connection($connectionName);
 
         if (in_array($driver, ['mysql', 'mariadb'])) {
@@ -237,8 +237,8 @@ class ServerTuningAdvisor
      */
     public function checkHealth(?string $connectionName = null): array
     {
-        $connectionName = $connectionName ?? config('database.default');
-        $driver = config("database.connections.{$connectionName}.driver", 'pgsql');
+        $connectionName = $this->explorerManager->resolveConnectionName($connectionName);
+        $driver = $this->explorerManager->getDriverForConnection($connectionName);
 
         $startTime = microtime(true);
         try {

@@ -51,6 +51,30 @@ class ImportServiceTest extends TestCase
         $this->assertEquals(2, \DB::table('csv_test')->count());
     }
 
+    public function test_import_csv_honors_scry_connection_over_database_default(): void
+    {
+        config(['database.connections.secondary' => [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]]);
+        config(['scry.connection' => 'secondary']);
+
+        Schema::connection('secondary')->create('csv_test_secondary', function (Blueprint $table) {
+            $table->id();
+            $table->string('product');
+            $table->integer('stock');
+        });
+
+        $csv = "product,stock\nKeyboard,45";
+
+        // No explicit connection passed — should resolve via scry.connection, not database.default.
+        $res = $this->importService->importCsv('csv_test_secondary', $csv);
+
+        $this->assertTrue($res['success']);
+        $this->assertEquals(1, \DB::connection('secondary')->table('csv_test_secondary')->count());
+    }
+
     public function test_import_sql_rolls_back_on_syntax_error(): void
     {
         Schema::create('sql_import_test', function (Blueprint $table) {

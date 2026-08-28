@@ -100,7 +100,7 @@ class ApiController extends Controller
         $connection = $request->input('connection');
 
         $colDefs = [];
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
 
         foreach ($cols as $col) {
             $colName = $col['name'] ?? null;
@@ -167,7 +167,7 @@ class ApiController extends Controller
     public function alterTable(string $table, Request $request): JsonResponse
     {
         $connection = $request->input('connection') ?? $request->query('connection');
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
 
         $addColumns = $request->input('add_columns', []);
@@ -373,7 +373,7 @@ class ApiController extends Controller
         $columns = $request->input('columns');
         $type = strtolower($request->input('type', 'index'));
 
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
 
         $colsQuoted = implode(', ', array_map(fn($c) => SqlSafety::quoteIdentifier($driver, $c), $columns));
         $prefix = match ($type) {
@@ -408,7 +408,7 @@ class ApiController extends Controller
     public function dropIndex(string $table, string $index, Request $request): JsonResponse
     {
         $connection = $request->input('connection') ?? $request->query('connection');
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
         $quotedIndex = SqlSafety::quoteIdentifier($driver, $index);
 
@@ -457,7 +457,7 @@ class ApiController extends Controller
         $onUpdate = $request->input('on_update', 'CASCADE');
         $constraintName = $request->input('constraint_name') ?: "fk_{$table}_{$localCol}";
 
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
         $quotedConstraint = SqlSafety::quoteIdentifier($driver, $constraintName);
         $quotedLocalCol = SqlSafety::quoteIdentifier($driver, $localCol);
@@ -488,7 +488,7 @@ class ApiController extends Controller
     public function dropForeignKey(string $table, string $fk, Request $request): JsonResponse
     {
         $connection = $request->input('connection') ?? $request->query('connection');
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
         $quotedFk = SqlSafety::quoteIdentifier($driver, $fk);
 
@@ -580,7 +580,7 @@ class ApiController extends Controller
         $action = strtoupper($request->input('action'));
         $privs = implode(', ', array_map('strtoupper', $request->input('privileges')));
         $db = $request->input('database', '*');
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $target = $db === '*' ? '*.*' : SqlSafety::quoteIdentifier($driver, $db) . '.*';
         $quotedUser = SqlSafety::quoteLiteral($user);
         $quotedHost = SqlSafety::quoteLiteral($host);
@@ -657,7 +657,7 @@ class ApiController extends Controller
         $event = $request->input('event');
         $body = $request->input('body');
 
-        $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+        $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
         $quotedName = SqlSafety::quoteIdentifier($driver, $name);
         $quotedTable = SqlSafety::quoteIdentifier($driver, $table);
         $sql = "CREATE TRIGGER {$quotedName} {$timing} {$event} ON {$quotedTable} FOR EACH ROW BEGIN\n{$body}\nEND;";
@@ -915,7 +915,7 @@ class ApiController extends Controller
 
         try {
             $inspector = $this->manager->forConnection($connection);
-            $driver = $this->manager->getDriverForConnection($connection ?? config('database.default'));
+            $driver = $this->manager->getDriverForConnection($this->manager->resolveConnectionName($connection));
 
             $rowsData = $inspector->getPaginatedRows($table, 1, 5000);
             $rows = $rowsData['data'] ?? [];
@@ -1007,7 +1007,8 @@ class ApiController extends Controller
         $connection = $request->query('connection');
 
         try {
-            $inspector = $this->manager->forConnection($connection);
+            $activeConn = $this->manager->resolveConnectionName($connection);
+            $inspector = $this->manager->forConnection($activeConn);
             $tablesData = $inspector->getTables();
             $schemas = [];
 
@@ -1019,7 +1020,7 @@ class ApiController extends Controller
             }
 
             return response()->json([
-                'connection' => $connection ?? config('database.default'),
+                'connection' => $activeConn,
                 'schemas' => $schemas,
             ]);
         } catch (UnsupportedDriverException $e) {
@@ -1038,9 +1039,10 @@ class ApiController extends Controller
         $connection = $request->query('connection');
 
         try {
-            $inspector = $this->manager->forConnection($connection);
+            $activeConn = $this->manager->resolveConnectionName($connection);
+            $inspector = $this->manager->forConnection($activeConn);
             $data = $inspector->getSchemaRelationships();
-            $data['connection'] = $connection ?? config('database.default');
+            $data['connection'] = $activeConn;
 
             return response()->json($data);
         } catch (UnsupportedDriverException $e) {
