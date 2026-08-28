@@ -91,6 +91,23 @@ class ApiControllerTest extends TestCase
             ->assertJsonStructure(['tables', 'relationships', 'total_tables', 'total_relationships', 'connection']);
     }
 
+    public function test_full_schema_and_schema_relationships_report_resolved_scry_connection(): void
+    {
+        config(['database.default' => 'mysql']);
+        config(['scry.connection' => 'sqlite']);
+
+        // No connection param in the request — the reported 'connection' must reflect
+        // what resolveConnectionName() actually picked (scry.connection), not the
+        // literal (null) request value or database.default.
+        $fullSchemaRes = $this->getJson('/scry/api/schema/full');
+        $fullSchemaRes->assertStatus(200)
+            ->assertJson(['connection' => 'sqlite']);
+
+        $relationshipsRes = $this->getJson('/scry/api/schema/relationships');
+        $relationshipsRes->assertStatus(200)
+            ->assertJson(['connection' => 'sqlite']);
+    }
+
     public function test_post_global_search_endpoint(): void
     {
         $response = $this->postJson('/scry/api/search/global?connection=sqlite', [
@@ -159,6 +176,31 @@ class ApiControllerTest extends TestCase
         // 5. Drop Table
         $dropRes = $this->deleteJson('/scry/api/tables/api_orders?connection=sqlite');
         $dropRes->assertStatus(200);
+    }
+
+    public function test_create_index_uses_driver_for_scry_connection_not_database_default(): void
+    {
+        // database.default is intentionally a different driver family here (the
+        // 'mysql' connection is never actually reached) to prove the DDL identifier
+        // quoting is built for the connection resolved via scry.connection, not for
+        // database.default.
+        config(['database.default' => 'mysql']);
+        config(['scry.connection' => 'sqlite']);
+
+        // No connection param in the request — should resolve via scry.connection (sqlite).
+        $response = $this->postJson('/scry/api/tables/api_products/indexes', [
+            'name' => 'idx_scry_conn_check',
+            'columns' => ['title'],
+        ]);
+
+        $response->assertStatus(201);
+
+        // SQLite identifiers are quoted with double quotes; MySQL/MariaDB use backticks.
+        // A backtick-quoted statement here would mean the driver was (incorrectly) taken
+        // from database.default instead of the resolved scry.connection.
+        $sql = $response->json('sql');
+        $this->assertStringContainsString('"idx_scry_conn_check"', $sql);
+        $this->assertStringNotContainsString('`idx_scry_conn_check`', $sql);
     }
 
     public function test_create_table_with_a_quote_in_the_column_name_does_not_break_out_of_the_ddl(): void

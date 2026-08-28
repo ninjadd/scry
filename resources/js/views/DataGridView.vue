@@ -427,9 +427,12 @@ const getPrimaryKeyCondition = () => {
   return firstCol ? { [firstCol]: selectedRow.value[firstCol] } : {};
 };
 
+let schemaRequestSeq = 0;
 const fetchSchema = async () => {
+  const requestId = ++schemaRequestSeq;
   try {
     const res = await store.scryFetch(`/tables/${props.table}/schema`);
+    if (requestId !== schemaRequestSeq) return; // a newer request has since started
     if (res.ok) {
       const data = await res.json();
       schemaColumns.value = data.columns || [];
@@ -443,7 +446,9 @@ const fetchSchema = async () => {
   }
 };
 
+let dataRequestSeq = 0;
 const fetchData = async () => {
+  const requestId = ++dataRequestSeq;
   loading.value = true;
   try {
     const params = new URLSearchParams({
@@ -453,6 +458,7 @@ const fetchData = async () => {
     });
 
     const res = await store.scryFetch(`/tables/${props.table}/rows?${params}`);
+    if (requestId !== dataRequestSeq) return; // a newer request has since started
     if (res.ok) {
       const data = await res.json();
       rows.value = data.data || [];
@@ -467,7 +473,7 @@ const fetchData = async () => {
   } catch (err) {
     console.error('Failed to load table data:', err);
   } finally {
-    loading.value = false;
+    if (requestId === dataRequestSeq) loading.value = false;
   }
 };
 

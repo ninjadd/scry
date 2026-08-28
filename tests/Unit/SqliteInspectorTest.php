@@ -97,6 +97,40 @@ class SqliteInspectorTest extends TestCase
         $this->assertFalse(Schema::hasTable('test_users_renamed'));
     }
 
+    public function test_truncate_table_removes_all_rows(): void
+    {
+        \DB::table('test_users')->insert([
+            ['name' => 'Alice', 'email' => 'alice@example.com'],
+            ['name' => 'Bob', 'email' => 'bob@example.com'],
+        ]);
+
+        $success = $this->inspector->truncateTable('test_users');
+
+        $this->assertTrue($success);
+        $this->assertEquals(0, \DB::table('test_users')->count());
+    }
+
+    public function test_update_row_returns_false_when_primary_key_does_not_match(): void
+    {
+        \DB::table('test_users')->insert(['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        $success = $this->inspector->updateRow('test_users', ['id' => 999], ['name' => 'Ghost']);
+
+        $this->assertFalse($success);
+    }
+
+    public function test_update_row_returns_true_for_no_op_update_on_matching_row(): void
+    {
+        \DB::table('test_users')->insert(['name' => 'Alice', 'email' => 'alice@example.com']);
+        $id = \DB::table('test_users')->where('email', 'alice@example.com')->value('id');
+
+        // Setting the same value produces 0 affected rows on some drivers, but the
+        // primary key does match a row, so this should still be reported as success.
+        $success = $this->inspector->updateRow('test_users', ['id' => $id], ['name' => 'Alice']);
+
+        $this->assertTrue($success);
+    }
+
     public function test_get_schema_relationships_returns_tables_and_relationships(): void
     {
         $relData = $this->inspector->getSchemaRelationships();

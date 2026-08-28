@@ -83,7 +83,14 @@ abstract class AbstractInspector implements DatabaseInspector
             }
         }
 
-        return $query->update($data) >= 0;
+        if ($query->update($data) > 0) {
+            return true;
+        }
+
+        // MySQL/MariaDB report 0 affected rows when an UPDATE matches a row
+        // but changes no column values, so re-check for a matching row before
+        // reporting failure.
+        return $query->exists();
     }
 
     public function deleteRow(string $table, array $primaryKey): bool

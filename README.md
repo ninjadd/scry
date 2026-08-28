@@ -3,7 +3,7 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/scry/scry.svg?style=flat-square)](https://packagist.org/packages/scry/scry)
 [![Latest Tag](https://img.shields.io/github/v/tag/ninjadd/scry?label=tag&style=flat-square)](https://github.com/ninjadd/scry/tags)
 [![Total Downloads](https://img.shields.io/packagist/dt/scry/scry.svg?style=flat-square)](https://packagist.org/packages/scry/scry)
-[![Tests Passing](https://img.shields.io/badge/Tests-61%20Passing-emerald.svg?style=flat-square)](https://github.com/ninjadd/scry)
+[![Tests Passing](https://img.shields.io/badge/Tests-105%20Passing-emerald.svg?style=flat-square)](https://github.com/ninjadd/scry)
 [![License](https://img.shields.io/github/license/ninjadd/scry?style=flat-square)](LICENSE)
 [![Laravel Support](https://img.shields.io/badge/Laravel-10_%7C_11_%7C_12_%7C_13%2B-red.svg?style=flat-square)](https://laravel.com)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2_%7C_8.3_%7C_8.4_%7C_8.5-blue.svg?style=flat-square)](https://php.net)
@@ -324,7 +324,7 @@ composer test
 ./vendor/bin/phpunit
 ```
 
-All 61 tests (227 assertions) cover:
+All 105 tests (310 assertions) cover:
 - Schema introspection across MySQL, MariaDB, PostgreSQL, SQLite, and SQL Server.
 - Standalone CLI connection resolution (DSN, SQLite files, flags, `.env` parsing).
 - Standalone micro-kernel routing and SPA asset delivery.
@@ -333,6 +333,17 @@ All 61 tests (227 assertions) cover:
 - Process listing and health monitoring.
 - Transactional imports and streaming exports.
 - DDL table creation, column altering, and index/foreign key management.
+- Multi-connection resolution consistency (`scry.connection` honored across DDL, import, and server-tuning endpoints).
+
+### Frontend Test Suite (Vitest)
+
+The Vue workbench has a Vitest suite covering store and component logic (e.g. connection-selection
+stability and stale-response guarding in the data grid):
+
+```bash
+npm install
+npm run test:js
+```
 
 ---
 
